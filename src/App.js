@@ -59,8 +59,8 @@ function App() {
         nodeCanvasObject={(node, ctx, globalScale) => {
           const radius = 5; // raio do nó
           ctx.beginPath();
-          ctx.arc(node.x, node.y, radius, 0, 5 * Math.PI, false);
-          ctx.fillStyle = "#8"; // cinza suave
+          ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+          ctx.fillStyle = "#888"; // cinza suave
           ctx.fill();
         }}
       />
