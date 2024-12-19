@@ -1,0 +1,49 @@
+/* Card.css */
+
+.card {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0; /* Cor da borda */
+  background-color: #ffffff; /* Cor do fundo */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Sombra suave */
+  overflow: hidden;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); /* Efeito hover mais intenso */
+  transform: translateY(-4px); /* Leve elevação ao passar o mouse */
+}
+
+.card-header {
+  padding: 16px;
+  background-color: #f7fafc; /* Cinza claro para o cabeçalho */
+  border-bottom: 1px solid #e2e8f0; /* Linha divisória */
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2d3748; /* Cor do título */
+  margin: 0;
+}
+
+.card-description {
+  font-size: 0.875rem;
+  color: #718096; /* Cinza mais escuro para descrição */
+  margin-top: 4px;
+}
+
+.card-content {
+  padding: 16px;
+  color: #4a5568; /* Cor do texto principal */
+  font-size: 1rem;
+}
+
+.card-footer {
+  padding: 16px;
+  border-top: 1px solid #e2e8f0;
+  background-color: #f7fafc;
+  text-align: right;
+  font-size: 0.875rem;
+  color: #4a5568;
+}
