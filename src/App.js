@@ -3,7 +3,8 @@ import { ForceGraph2D } from "react-force-graph";
 
 function App() {
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
-  const [selectedPost, setSelectedPost] = useState(null);
+  const [groupedNodes, setGroupedNodes] = useState({});
+  const [selectedNode, setSelectedNode] = useState(null);
 
   useEffect(() => {
     // Chame seu endpoint para obter os posts
@@ -21,6 +22,7 @@ function App() {
           title: post.title || "Título não disponível",
           content: post.content || "Conteúdo não disponível",
           author: post.author.username || "Autor desconhecido",
+          subject: post.subject || "Sem categoria",
         }));
 
         const links = [];
@@ -32,35 +34,78 @@ function App() {
           }
         });
 
+        // Agrupando por subject
+        const groupedBySubject = nodes.reduce((acc, node) => {
+          const subject = node.subject;
+          if (!acc[subject]) {
+            acc[subject] = { nodes: [], links: [] };
+          }
+          acc[subject].nodes.push(node);
+          acc[subject].links = links.filter(
+            (link) =>
+              acc[subject].nodes.find((n) => n.id === link.source) &&
+              acc[subject].nodes.find((n) => n.id === link.target)
+          );
+          return acc;
+        }, {});
+
         setGraphData({ nodes, links });
+        setGroupedNodes(groupedBySubject);
       })
       .catch((err) => console.error(err));
   }, []);
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#1e1e1e" }}>
-      <div style={{ flex: 1 }}>
-        <ForceGraph2D
-          graphData={graphData}
-          nodeLabel="title"
-          nodeAutoColorBy="id"
-          linkColor={() => "rgba(255,255,255,0.6)"}
-          onNodeClick={(node) => setSelectedPost(node)} // Atualiza o post selecionado
-          nodeCanvasObject={(node, ctx) => {
-            const radius = 5;
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-            ctx.fillStyle = "#888";
-            ctx.fill();
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "20px",
+        padding: "20px",
+        background: "#1e1e1e",
+      }}
+    >
+      {Object.entries(groupedNodes).map(([subject, { nodes, links }]) => (
+        <div
+          key={subject}
+          style={{
+            width: "300px",
+            height: "300px",
+            border: "1px solid #ccc",
+            borderRadius: "8px",
+            backgroundColor: "#f5f5f5",
+            padding: "10px",
+            overflow: "hidden",
           }}
-        />
-      </div>
-      {selectedPost && (
+        >
+          <h3 style={{ textAlign: "center", marginBottom: "10px" }}>
+            {subject}
+          </h3>
+          <ForceGraph2D
+            graphData={{ nodes, links }}
+            nodeLabel="title"
+            nodeAutoColorBy="id"
+            linkColor={() => "rgba(0, 0, 0, 0.5)"}
+            width={280} // Ajuste do tamanho do gráfico
+            height={200}
+            onNodeClick={(node) => setSelectedNode(node)} // Abre o card do node
+            nodeCanvasObject={(node, ctx) => {
+              const radius = 5;
+              ctx.beginPath();
+              ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+              ctx.fillStyle = "#888";
+              ctx.fill();
+            }}
+          />
+        </div>
+      ))}
+
+      {selectedNode && (
         <Post
-          title={selectedPost.title}
-          content={selectedPost.content}
-          author={selectedPost.author}
-          onClose={() => setSelectedPost(null)}
+          title={selectedNode.title}
+          content={selectedNode.content}
+          author={selectedNode.author}
+          onClose={() => setSelectedNode(null)}
         />
       )}
     </div>
@@ -79,6 +124,7 @@ function Post({ title, content, author, onClose }) {
         position: "absolute",
         top: "10%",
         right: "10%",
+        zIndex: 1000,
       }}
     >
       <button
