@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ForceGraph2D } from "react-force-graph";
-import Cabecalho from "./components/cabecalho/cabecalho";
+import Cabecalho from "./components/Cabecalho";
 
 function App() {
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });

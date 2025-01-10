@@ -1,19 +1,36 @@
-import React, { useState } from "react";
-import Cabecalho from "../cabecalho/cabecalho";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import Cabecalho from "../Cabecalho";
 
 function NovoPost() {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     title: "",
     content: "",
     author: { username: "" },
-    links: [],
+    links: "", // Novo campo para links (IDs separados por vírgulas)
     subject: "",
   });
+
+  const [subjects, setSubjects] = useState([]); // Para armazenar os valores do dropdown
+
+  // Buscar os subjects ao carregar a página
+  useEffect(() => {
+    fetch("http://localhost:8080/api/posts/subjects")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Erro ao carregar subjects");
+        }
+        return response.json();
+      })
+      .then((data) => setSubjects(data))
+      .catch((error) => console.error(error));
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // Atualiza o campo do autor corretamente
     if (name === "username") {
       setFormData((prev) => ({
         ...prev,
@@ -29,6 +46,12 @@ function NovoPost() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const processedFormData = {
+      ...formData,
+      links: formData.links.split(",").map((id) => id.trim()), // Processar os links como array
+    };
+
     try {
       const response = await fetch(
         "http://localhost:8080/api/posts/createPost",
@@ -37,7 +60,7 @@ function NovoPost() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(processedFormData),
         }
       );
 
@@ -46,13 +69,7 @@ function NovoPost() {
       }
 
       alert("Post criado com sucesso!");
-      setFormData({
-        title: "",
-        content: "",
-        author: { username: "" },
-        links: [],
-        subject: "",
-      });
+      navigate("/");
     } catch (error) {
       console.error(error);
       alert("Ocorreu um erro ao criar o post.");
@@ -95,14 +112,30 @@ function NovoPost() {
             />
           </div>
           <div style={{ marginBottom: "10px" }}>
-            <label>Categoria (Subject):</label>
+            <label>Links (IDs separados por vírgulas):</label>
             <input
               type="text"
+              name="links"
+              value={formData.links}
+              onChange={handleChange}
+              style={{ width: "100%", padding: "8px" }}
+            />
+          </div>
+          <div style={{ marginBottom: "10px" }}>
+            <label>Categoria (Subject):</label>
+            <select
               name="subject"
               value={formData.subject}
               onChange={handleChange}
               style={{ width: "100%", padding: "8px" }}
-            />
+            >
+              <option value="">Selecione uma categoria</option>
+              {subjects.map((subject) => (
+                <option key={subject} value={subject}>
+                  {subject}
+                </option>
+              ))}
+            </select>
           </div>
           <button
             type="submit"
