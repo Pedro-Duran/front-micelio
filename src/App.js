@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ForceGraph2D } from "react-force-graph";
+import Cabecalho from "./components/cabecalho/cabecalho";
 
 function App() {
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
@@ -56,59 +57,62 @@ function App() {
   }, []);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: "20px",
-        padding: "20px",
-        background: "#1e1e1e",
-      }}
-    >
-      {Object.entries(groupedNodes).map(([subject, { nodes, links }]) => (
-        <div
-          key={subject}
-          style={{
-            width: "300px",
-            height: "300px",
-            border: "1px solid #ccc",
-            borderRadius: "8px",
-            backgroundColor: "#f5f5f5",
-            padding: "10px",
-            overflow: "hidden",
-          }}
-        >
-          <h3 style={{ textAlign: "center", marginBottom: "10px" }}>
-            {subject}
-          </h3>
-          <ForceGraph2D
-            graphData={{ nodes, links }}
-            nodeLabel="title"
-            nodeAutoColorBy="id"
-            linkColor={() => "rgba(0, 0, 0, 0.5)"}
-            width={280} // Ajuste do tamanho do gráfico
-            height={200}
-            onNodeClick={(node) => setSelectedNode(node)} // Abre o card do node
-            nodeCanvasObject={(node, ctx) => {
-              const radius = 5;
-              ctx.beginPath();
-              ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-              ctx.fillStyle = "#888";
-              ctx.fill();
+    <>
+      <Cabecalho />
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "20px",
+          padding: "20px",
+          background: "#1e1e1e",
+        }}
+      >
+        {Object.entries(groupedNodes).map(([subject, { nodes, links }]) => (
+          <div
+            key={subject}
+            style={{
+              width: "300px",
+              height: "300px",
+              border: "1px solid #ccc",
+              borderRadius: "8px",
+              backgroundColor: "#f5f5f5",
+              padding: "10px",
+              overflow: "hidden",
             }}
-          />
-        </div>
-      ))}
+          >
+            <h3 style={{ textAlign: "center", marginBottom: "10px" }}>
+              {subject}
+            </h3>
+            <ForceGraph2D
+              graphData={{ nodes, links }}
+              nodeLabel="title"
+              nodeAutoColorBy="id"
+              linkColor={() => "rgba(0, 0, 0, 0.5)"}
+              width={280} // Ajuste do tamanho do gráfico
+              height={200}
+              onNodeClick={(node) => setSelectedNode(node)} // Abre o card do node
+              nodeCanvasObject={(node, ctx) => {
+                const radius = 5;
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+                ctx.fillStyle = "#888";
+                ctx.fill();
+              }}
+            />
+          </div>
+        ))}
 
-      {selectedNode && (
-        <Post
-          title={selectedNode.title}
-          content={selectedNode.content}
-          author={selectedNode.author}
-          onClose={() => setSelectedNode(null)}
-        />
-      )}
-    </div>
+        {selectedNode && (
+          <Post
+            title={selectedNode.title}
+            content={selectedNode.content}
+            author={selectedNode.author}
+            onClose={() => setSelectedNode(null)}
+          />
+        )}
+      </div>
+    </>
   );
 }
 
