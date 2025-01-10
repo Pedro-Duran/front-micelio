@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Cabecalho from "../cabecalho/cabecalho";
 
 function NovoPost() {
   const [formData, setFormData] = useState({
@@ -59,62 +60,65 @@ function NovoPost() {
   };
 
   return (
-    <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
-      <h2>Criar Novo Post</h2>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: "10px" }}>
-          <label>Título:</label>
-          <input
-            type="text"
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
-            style={{ width: "100%", padding: "8px" }}
-          />
-        </div>
-        <div style={{ marginBottom: "10px" }}>
-          <label>Conteúdo:</label>
-          <textarea
-            name="content"
-            value={formData.content}
-            onChange={handleChange}
-            style={{ width: "100%", padding: "8px" }}
-          ></textarea>
-        </div>
-        <div style={{ marginBottom: "10px" }}>
-          <label>Autor:</label>
-          <input
-            type="text"
-            name="username"
-            value={formData.author.username}
-            onChange={handleChange}
-            style={{ width: "100%", padding: "8px" }}
-          />
-        </div>
-        <div style={{ marginBottom: "10px" }}>
-          <label>Categoria (Subject):</label>
-          <input
-            type="text"
-            name="subject"
-            value={formData.subject}
-            onChange={handleChange}
-            style={{ width: "100%", padding: "8px" }}
-          />
-        </div>
-        <button
-          type="submit"
-          style={{
-            backgroundColor: "#1e1e1e",
-            color: "#fff",
-            padding: "10px 20px",
-            border: "none",
-            cursor: "pointer",
-          }}
-        >
-          Criar Post
-        </button>
-      </form>
-    </div>
+    <>
+      <Cabecalho />
+      <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
+        <h2>Criar Novo Post</h2>
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: "10px" }}>
+            <label>Título:</label>
+            <input
+              type="text"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              style={{ width: "100%", padding: "8px" }}
+            />
+          </div>
+          <div style={{ marginBottom: "10px" }}>
+            <label>Conteúdo:</label>
+            <textarea
+              name="content"
+              value={formData.content}
+              onChange={handleChange}
+              style={{ width: "100%", padding: "8px" }}
+            ></textarea>
+          </div>
+          <div style={{ marginBottom: "10px" }}>
+            <label>Autor:</label>
+            <input
+              type="text"
+              name="username"
+              value={formData.author.username}
+              onChange={handleChange}
+              style={{ width: "100%", padding: "8px" }}
+            />
+          </div>
+          <div style={{ marginBottom: "10px" }}>
+            <label>Categoria (Subject):</label>
+            <input
+              type="text"
+              name="subject"
+              value={formData.subject}
+              onChange={handleChange}
+              style={{ width: "100%", padding: "8px" }}
+            />
+          </div>
+          <button
+            type="submit"
+            style={{
+              backgroundColor: "#1e1e1e",
+              color: "#fff",
+              padding: "10px 20px",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Criar Post
+          </button>
+        </form>
+      </div>
+    </>
   );
 }
 

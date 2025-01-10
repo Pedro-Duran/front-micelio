@@ -49,7 +49,7 @@ const Cabecalho = () => {
         </li>
         <li>
           <a
-            href="/posts"
+            href="/"
             style={{
               textDecoration: "none",
               color: "white",
