@@ -16,6 +16,7 @@ function NovoPost() {
   const [subjects, setSubjects] = useState([]); // Para armazenar os valores do dropdown
   const [postOptions, setPostOptions] = useState(null); // Para armazenar os posts retornados pelo endpoint
   const [selectedSubject, setSelectedSubject] = useState(""); // Para rastrear o subject selecionado
+  const [isCreatingSubject, setIsCreatingSubject] = useState(false); // Para rastrear se o usuário está criando um novo subject
 
   // Buscar os subjects ao carregar a página
   useEffect(() => {
@@ -30,24 +31,30 @@ function NovoPost() {
       .catch((error) => console.error(error));
   }, []);
 
-  // Atualiza o formData e realiza a requisição para posts ao selecionar um subject
   const handleSubjectChange = (e) => {
     const value = e.target.value;
-    setFormData((prev) => ({ ...prev, subject: value }));
-    setSelectedSubject(value);
 
-    // Faz a requisição ao endpoint para obter posts relacionados ao subject selecionado
-    fetch(
-      `http://localhost:8080/api/posts/postsIdForThisSubject?subject=${value}`
-    )
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Erro ao buscar posts por subject");
-        }
-        return response.json();
-      })
-      .then((data) => setPostOptions(data))
-      .catch((error) => console.error(error));
+    if (value === "new") {
+      setIsCreatingSubject(true); // Ativa o modo de criação de subject
+      setFormData((prev) => ({ ...prev, subject: "" })); // Limpa o valor do subject
+    } else {
+      setIsCreatingSubject(false); // Desativa o modo de criação
+      setFormData((prev) => ({ ...prev, subject: value }));
+      setSelectedSubject(value);
+
+      // Faz a requisição ao endpoint para obter posts relacionados ao subject selecionado
+      fetch(
+        `http://localhost:8080/api/posts/postsIdForThisSubject?subject=${value}`
+      )
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Erro ao buscar posts por subject");
+          }
+          return response.json();
+        })
+        .then((data) => setPostOptions(data))
+        .catch((error) => console.error(error));
+    }
   };
 
   const handleChange = (e) => {
@@ -146,19 +153,31 @@ function NovoPost() {
             </div>
             <div style={{ marginBottom: "10px" }}>
               <label>Categoria (Subject):</label>
-              <select
-                name="subject"
-                value={formData.subject}
-                onChange={handleSubjectChange}
-                style={{ width: "100%", padding: "8px" }}
-              >
-                <option value="">Selecione uma categoria</option>
-                {subjects.map((subject) => (
-                  <option key={subject} value={subject}>
-                    {subject}
-                  </option>
-                ))}
-              </select>
+              {!isCreatingSubject ? (
+                <select
+                  name="subject"
+                  value={formData.subject}
+                  onChange={handleSubjectChange}
+                  style={{ width: "100%", padding: "8px" }}
+                >
+                  <option value="">Selecione uma categoria</option>
+                  {subjects.map((subject) => (
+                    <option key={subject} value={subject}>
+                      {subject}
+                    </option>
+                  ))}
+                  <option value="new">Criar Novo Subject</option>
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  name="subject"
+                  placeholder="Digite o novo subject"
+                  value={formData.subject}
+                  onChange={handleChange}
+                  style={{ width: "100%", padding: "8px" }}
+                />
+              )}
             </div>
             <button
               type="submit"
