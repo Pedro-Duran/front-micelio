@@ -9,11 +9,13 @@ function NovoPost() {
     title: "",
     content: "",
     author: { username: "" },
-    links: "", // Novo campo para links (IDs separados por vírgulas)
+    links: "",
     subject: "",
   });
 
   const [subjects, setSubjects] = useState([]); // Para armazenar os valores do dropdown
+  const [postOptions, setPostOptions] = useState(null); // Para armazenar os posts retornados pelo endpoint
+  const [selectedSubject, setSelectedSubject] = useState(""); // Para rastrear o subject selecionado
 
   // Buscar os subjects ao carregar a página
   useEffect(() => {
@@ -27,6 +29,26 @@ function NovoPost() {
       .then((data) => setSubjects(data))
       .catch((error) => console.error(error));
   }, []);
+
+  // Atualiza o formData e realiza a requisição para posts ao selecionar um subject
+  const handleSubjectChange = (e) => {
+    const value = e.target.value;
+    setFormData((prev) => ({ ...prev, subject: value }));
+    setSelectedSubject(value);
+
+    // Faz a requisição ao endpoint para obter posts relacionados ao subject selecionado
+    fetch(
+      `http://localhost:8080/api/posts/postsIdForThisSubject?subject=${value}`
+    )
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Erro ao buscar posts por subject");
+        }
+        return response.json();
+      })
+      .then((data) => setPostOptions(data))
+      .catch((error) => console.error(error));
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -79,77 +101,104 @@ function NovoPost() {
   return (
     <>
       <Cabecalho />
-      <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
-        <h2>Criar Novo Post</h2>
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: "10px" }}>
-            <label>Título:</label>
-            <input
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              style={{ width: "100%", padding: "8px" }}
-            />
-          </div>
-          <div style={{ marginBottom: "10px" }}>
-            <label>Conteúdo:</label>
-            <textarea
-              name="content"
-              value={formData.content}
-              onChange={handleChange}
-              style={{ width: "100%", padding: "8px" }}
-            ></textarea>
-          </div>
-          <div style={{ marginBottom: "10px" }}>
-            <label>Autor:</label>
-            <input
-              type="text"
-              name="username"
-              value={formData.author.username}
-              onChange={handleChange}
-              style={{ width: "100%", padding: "8px" }}
-            />
-          </div>
-          <div style={{ marginBottom: "10px" }}>
-            <label>Links (IDs separados por vírgulas):</label>
-            <input
-              type="text"
-              name="links"
-              value={formData.links}
-              onChange={handleChange}
-              style={{ width: "100%", padding: "8px" }}
-            />
-          </div>
-          <div style={{ marginBottom: "10px" }}>
-            <label>Categoria (Subject):</label>
-            <select
-              name="subject"
-              value={formData.subject}
-              onChange={handleChange}
-              style={{ width: "100%", padding: "8px" }}
+      <div style={{ display: "flex", padding: "20px", gap: "20px" }}>
+        <div style={{ flex: 1, maxWidth: "600px" }}>
+          <h2>Criar Novo Post</h2>
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: "10px" }}>
+              <label>Título:</label>
+              <input
+                type="text"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                style={{ width: "100%", padding: "8px" }}
+              />
+            </div>
+            <div style={{ marginBottom: "10px" }}>
+              <label>Conteúdo:</label>
+              <textarea
+                name="content"
+                value={formData.content}
+                onChange={handleChange}
+                style={{ width: "100%", padding: "8px" }}
+              ></textarea>
+            </div>
+            <div style={{ marginBottom: "10px" }}>
+              <label>Autor:</label>
+              <input
+                type="text"
+                name="username"
+                value={formData.author.username}
+                onChange={handleChange}
+                style={{ width: "100%", padding: "8px" }}
+              />
+            </div>
+            <div style={{ marginBottom: "10px" }}>
+              <label>Links (IDs separados por vírgulas):</label>
+              <input
+                type="text"
+                name="links"
+                value={formData.links}
+                onChange={handleChange}
+                style={{ width: "100%", padding: "8px" }}
+              />
+            </div>
+            <div style={{ marginBottom: "10px" }}>
+              <label>Categoria (Subject):</label>
+              <select
+                name="subject"
+                value={formData.subject}
+                onChange={handleSubjectChange}
+                style={{ width: "100%", padding: "8px" }}
+              >
+                <option value="">Selecione uma categoria</option>
+                {subjects.map((subject) => (
+                  <option key={subject} value={subject}>
+                    {subject}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="submit"
+              style={{
+                backgroundColor: "#1e1e1e",
+                color: "#fff",
+                padding: "10px 20px",
+                border: "none",
+                cursor: "pointer",
+              }}
             >
-              <option value="">Selecione uma categoria</option>
-              {subjects.map((subject) => (
-                <option key={subject} value={subject}>
-                  {subject}
-                </option>
+              Criar Post
+            </button>
+          </form>
+        </div>
+
+        {/* Exibir os posts disponíveis ao lado do formulário */}
+        {postOptions && (
+          <div style={{ flex: 1 }}>
+            <h3>Posts Disponíveis:</h3>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+            >
+              {Object.entries(postOptions).map(([id, title]) => (
+                <div
+                  key={id}
+                  style={{
+                    padding: "10px",
+                    backgroundColor: "#f9f9f9",
+                    border: "1px solid #ddd",
+                    borderRadius: "5px",
+                  }}
+                >
+                  <strong>ID:</strong> {id} <br />
+                  <strong>Título:</strong> {title}
+                </div>
               ))}
-            </select>
+            </div>
           </div>
-          <button
-            type="submit"
-            style={{
-              backgroundColor: "#1e1e1e",
-              color: "#fff",
-              padding: "10px 20px",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            Criar Post
-          </button>
-        </form>
+        )}
       </div>
     </>
   );
