@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ForceGraph2D } from "react-force-graph";
 import Cabecalho from "./components/Cabecalho";
+import Post from "./components/Post";
 
 function App() {
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
@@ -18,13 +19,20 @@ function App() {
       })
       .then((data) => {
         // Validação e transformação dos dados
+        //Guardo na variável "nodes" vários objetos "post",
+        // que tiveram seus atributos devidamente mapeados pelo map
         const nodes = data.map((post) => ({
           id: post.id,
           title: post.title || "Título não disponível",
-          content: post.content || "Conteúdo não disponível",
+          content: post.content || "-",
           author: post.author.username || "Autor desconhecido",
           subject: post.subject || "Sem categoria",
         }));
+
+        // Na requisição, os posts vêm com um atributo chamado "links", que é um array.
+        // Iteramos por esse array e para cada elemento nele presente, adicionamos um "source" e um "target"
+        //Sendo o source o id do post que têm seu atributo de array iterado,
+        // e o target cada um dos ids de posts que serão linkados
 
         const links = [];
         data.forEach((post) => {
@@ -36,6 +44,13 @@ function App() {
         });
 
         // Agrupando por subject
+        //O reduce é usado para construir um objeto (acc, que significa acumulador)
+        //Se o acumulador ainda não tiver registrado o subject ( if (!acc[subject])), ele cria
+        // um subject com um array de nodes vazios, e os links entre esses nodes também são inicializados
+        //como um array vazio.
+        //Percorremos os links com um filter para checar se tanto o source quanto o target estão dentro do
+        //subject. Filter é uma função que retorna um novo array a partir de valores filtrados de um primeiro
+        // array
         const groupedBySubject = nodes.reduce((acc, node) => {
           const subject = node.subject;
           if (!acc[subject]) {
@@ -88,7 +103,7 @@ function App() {
               graphData={{ nodes, links }}
               nodeLabel="title"
               nodeAutoColorBy="id"
-              linkColor={() => "rgba(0, 0, 0, 0.5)"}
+              linkColor={() => "rgba(22, 157, 211, 0.5)"}
               width={280} // Ajuste do tamanho do gráfico
               height={200}
               onNodeClick={(node) => setSelectedNode(node)} // Abre o card do node
@@ -96,7 +111,7 @@ function App() {
                 const radius = 5;
                 ctx.beginPath();
                 ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-                ctx.fillStyle = "#888";
+                ctx.fillStyle = "#128";
                 ctx.fill();
               }}
             />
@@ -108,46 +123,12 @@ function App() {
             title={selectedNode.title}
             content={selectedNode.content}
             author={selectedNode.author}
+            id={selectedNode.id}
             onClose={() => setSelectedNode(null)}
           />
         )}
       </div>
     </>
-  );
-}
-
-function Post({ title, content, author, onClose }) {
-  return (
-    <div
-      style={{
-        width: "400px",
-        padding: "20px",
-        backgroundColor: "#fff",
-        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
-        borderRadius: "8px",
-        position: "absolute",
-        top: "10%",
-        right: "10%",
-        zIndex: 1000,
-      }}
-    >
-      <button
-        style={{
-          position: "absolute",
-          top: "10px",
-          right: "10px",
-          border: "none",
-          background: "transparent",
-          cursor: "pointer",
-        }}
-        onClick={onClose}
-      >
-        ❌
-      </button>
-      <h2 style={{ marginBottom: "10px" }}>{title}</h2>
-      <p style={{ marginBottom: "10px" }}>{content}</p>
-      <p style={{ fontStyle: "italic", color: "gray" }}>Autor: {author}</p>
-    </div>
   );
 }
 
