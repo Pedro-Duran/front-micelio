@@ -61,6 +61,18 @@ const Cabecalho = () => {
         </li>
         <li>
           <a
+            href="/dashboard"
+            style={{
+              textDecoration: "none",
+              color: "white",
+              fontWeight: "500",
+            }}
+          >
+            Analytics
+          </a>
+        </li>
+        <li>
+          <a
             href="/contact"
             style={{
               textDecoration: "none",
