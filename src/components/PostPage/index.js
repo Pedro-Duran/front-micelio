@@ -121,6 +121,20 @@ function PostPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm(`Deletar "${post.title}"? Essa ação não pode ser desfeita.`)) return;
+    try {
+      const response = await fetch(`/api/posts/deletePost?id=${postId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Falha ao deletar");
+      navigate("/");
+    } catch (error) {
+      console.error("Erro ao deletar:", error);
+      alert("Erro ao deletar o post.");
+    }
+  };
+
   if (!post) {
     return (
       <>
@@ -213,12 +227,20 @@ function PostPage() {
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <h1 style={{ fontSize: "28px", marginBottom: "8px", marginTop: 0 }}>{editedTitle}</h1>
-                <button
-                  onClick={() => setEditMode(true)}
-                  style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}
-                >
-                  ✏️
-                </button>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    onClick={() => setEditMode(true)}
+                    style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
               <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px" }}>
                 Autor: {post.author} · {post.subject}
