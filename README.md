@@ -1,70 +1,80 @@
-# Getting Started with Create React App
+# Puredo — Blog com visualização em grafo
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Blog pessoal onde posts são nós e referências entre eles são arestas, formando um grafo navegável inspirado no Obsidian e no Quartz.
 
-## Available Scripts
+## Stack
 
-In the project directory, you can run:
+| Camada | Tecnologia |
+|---|---|
+| Frontend | React 19, React Router 7, react-force-graph |
+| Editor | @uiw/react-md-editor + react-markdown |
+| Gráficos | Recharts |
+| Backend | Spring Boot + Spring Security + JWT (jjwt 0.12.3) |
+| Banco | JPA/Hibernate |
 
-### `npm start`
+## Funcionalidades
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Grafo por subject** — página inicial agrupa posts por categoria em grafos independentes
+- **Página de post** (`/post/:id`) — conteúdo em Markdown com painel lateral mostrando o grafo local (vizinhos 1 hop)
+- **Wikilinks** — escrever `[[título]]` no conteúdo cria automaticamente um post stub e o linka ao grafo
+- **Nós stub** — posts criados por wikilink aparecem visualmente apagados no grafo até receberem conteúdo
+- **Timeline** — painel lateral animado que reconstrói o grafo local em ordem cronológica com download em WebM
+- **Analytics** — eventos `VIEW` (duração mínima 10s) e `CLICK_NODE` salvos no backend; dashboard em `/dashboard`
+- **Autenticação JWT** — login/cadastro em `/login`; rotas de escrita protegidas; token persistido no localStorage
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Pré-requisitos
 
-### `npm test`
+- Node.js 18+
+- Java 17+
+- Backend rodando em `http://localhost:8080`
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Instalação e execução
 
-### `npm run build`
+```bash
+npm install
+npm start
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+O app abre em `http://localhost:3000`. O proxy CRA já redireciona `/api/*` para `localhost:8080`.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Rotas
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+| Rota | Descrição | Protegida |
+|---|---|---|
+| `/` | Grafos por subject | — |
+| `/post/:id` | Leitura do post + grafo local | — |
+| `/novoPost` | Formulário de criação | ✅ |
+| `/login` | Login e cadastro | — |
+| `/dashboard` | Analytics | — |
 
-### `npm run eject`
+## Estrutura de pastas relevante
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```
+src/
+├── components/
+│   ├── Cabecalho/       # navbar com estado de auth
+│   ├── Dashboard/       # gráficos de analytics (recharts)
+│   ├── Login/           # login + cadastro com toggle
+│   ├── PostPage/        # leitura, edição, grafo local, timeline
+│   ├── Timeline/        # animação standalone (rota /timeline)
+│   └── newPost/         # formulário de criação com MDEditor
+├── context/
+│   └── AuthContext.js   # token + username globais via React Context
+└── utils/
+    ├── analytics.js     # registerEvent com filtro de duração mínima
+    └── api.js           # authFetch — injeta Authorization header
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Endpoints principais
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```
+POST /api/auth/login              # retorna JWT
+POST /api/users/createUser        # cadastro
+GET  /api/posts/verPosts          # lista todos os posts
+POST /api/posts/createPost        # cria post (aceita wikilinks[])
+PUT  /api/posts/updatePost        # edita post
+DELETE /api/posts/deletePost?id=  # remove post
+GET  /api/events/summary          # agregado de analytics
+POST /api/events/register         # registra evento de sessão
+GET  /api/events/referrers        # top referrers (em desenvolvimento)
+```

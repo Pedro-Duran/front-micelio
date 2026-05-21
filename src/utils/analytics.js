@@ -7,7 +7,11 @@ const getSessionId = () => {
   return sessionId;
 };
 
+const MIN_VIEW_DURATION_S = 10;
+
 export const registerEvent = ({ postId, eventType, duration }) => {
+  if (eventType === "VIEW" && (duration ?? 0) < MIN_VIEW_DURATION_S) return;
+
   const body = JSON.stringify({
     postId,
     eventType,

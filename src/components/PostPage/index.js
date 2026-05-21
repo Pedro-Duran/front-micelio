@@ -5,6 +5,8 @@ import ReactMarkdown from "react-markdown";
 import MDEditor from "@uiw/react-md-editor";
 import Cabecalho from "../Cabecalho";
 import { registerEvent } from "../../utils/analytics";
+import { authFetch } from "../../utils/api";
+import { useAuth } from "../../context/AuthContext";
 
 const TL_SPEEDS = { Devagar: 1500, Normal: 800, "Rápido": 300 };
 
@@ -12,6 +14,7 @@ function PostPage() {
   const { id } = useParams();
   const postId = parseInt(id);
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
 
   const [allNodes, setAllNodes] = useState([]);
   const [allLinks, setAllLinks] = useState([]);
@@ -208,9 +211,8 @@ function PostPage() {
 
     try {
       setIsSaving(true);
-      const response = await fetch("/api/posts/updatePost", {
+      const response = await authFetch("/api/posts/updatePost", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!response.ok) throw new Error("Falha ao salvar");
@@ -230,7 +232,7 @@ function PostPage() {
   const handleDelete = async () => {
     if (!window.confirm(`Deletar "${post.title}"? Essa ação não pode ser desfeita.`)) return;
     try {
-      const response = await fetch(`/api/posts/deletePost?id=${postId}`, { method: "DELETE" });
+      const response = await authFetch(`/api/posts/deletePost?id=${postId}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Falha ao deletar");
       navigate("/");
     } catch (error) {
@@ -293,9 +295,13 @@ function PostPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <h1 style={{ fontSize: "28px", marginBottom: "8px", marginTop: 0 }}>{editedTitle}</h1>
                 <div style={{ display: "flex", gap: "8px" }}>
-                  <button onClick={() => setEditMode(true)} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>✏️</button>
                   <button onClick={openTimeline} title="Ver pensamento sendo construído" style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>🎬</button>
-                  <button onClick={handleDelete} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>🗑️</button>
+                  {isLoggedIn && (
+                    <>
+                      <button onClick={() => setEditMode(true)} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>✏️</button>
+                      <button onClick={handleDelete} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>🗑️</button>
+                    </>
+                  )}
                 </div>
               </div>
               <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px" }}>

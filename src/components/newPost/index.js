@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import MDEditor from "@uiw/react-md-editor";
 import Cabecalho from "../Cabecalho";
+import { authFetch } from "../../utils/api";
 
 function NovoPost() {
   const navigate = useNavigate();
@@ -85,16 +86,10 @@ function NovoPost() {
     };
 
     try {
-      const response = await fetch(
-        "/api/posts/createPost",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(processedFormData),
-        }
-      );
+      const response = await authFetch("/api/posts/createPost", {
+        method: "POST",
+        body: JSON.stringify(processedFormData),
+      });
 
       if (!response.ok) {
         throw new Error("Erro ao criar o post.");
