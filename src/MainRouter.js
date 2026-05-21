@@ -1,17 +1,16 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import App from "./App"; // Página principal com o gráfico
-import NovoPost from "./components/newPost"; // Página de formulário "Novo Post"
+import App from "./App";
+import NovoPost from "./components/newPost";
+import PostPage from "./components/PostPage";
 
 function MainRouter() {
   return (
     <Router>
       <Routes>
-        {/* Rota para a página principal */}
         <Route path="/" element={<App />} />
-
-        {/* Rota para criar um novo post */}
         <Route path="/novoPost" element={<NovoPost />} />
+        <Route path="/post/:id" element={<PostPage />} />
       </Routes>
     </Router>
   );

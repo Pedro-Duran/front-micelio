@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { ForceGraph2D } from "react-force-graph";
+import { useNavigate } from "react-router-dom";
 import Cabecalho from "./components/Cabecalho";
-import Post from "./components/Post";
 
 function App() {
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
   const [groupedNodes, setGroupedNodes] = useState({});
-  const [selectedNode, setSelectedNode] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Chame seu endpoint para obter os posts
-    fetch("http://localhost:8080/api/posts/verPosts")
+    fetch("/api/posts/verPosts")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Erro na requisição");
@@ -25,8 +25,9 @@ function App() {
           id: post.id,
           title: post.title || "Título não disponível",
           content: post.content || "-",
-          author: post.author.username || "Autor desconhecido",
+          author: post.author?.username || "Autor desconhecido",
           subject: post.subject || "Sem categoria",
+          isStub: post.isStub || false,
         }));
 
         // Na requisição, os posts vêm com um atributo chamado "links", que é um array.
@@ -106,27 +107,18 @@ function App() {
               linkColor={() => "rgba(22, 157, 211, 0.5)"}
               width={280} // Ajuste do tamanho do gráfico
               height={200}
-              onNodeClick={(node) => setSelectedNode(node)} // Abre o card do node
+              onNodeClick={(node) => navigate(`/post/${node.id}`)}
               nodeCanvasObject={(node, ctx) => {
-                const radius = 5;
+                const radius = node.isStub ? 3 : 5;
                 ctx.beginPath();
                 ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-                ctx.fillStyle = "#128";
+                ctx.fillStyle = node.isStub ? "rgba(100, 150, 200, 0.3)" : "#1a6b8a";
                 ctx.fill();
               }}
             />
           </div>
         ))}
 
-        {selectedNode && (
-          <Post
-            title={selectedNode.title}
-            content={selectedNode.content}
-            author={selectedNode.author}
-            id={selectedNode.id}
-            onClose={() => setSelectedNode(null)}
-          />
-        )}
       </div>
     </>
   );

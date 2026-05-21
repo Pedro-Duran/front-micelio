@@ -25,7 +25,7 @@ function Post({ title, content, author, id, onClose }) {
       setIsSaving(true); // Indica que a requisição está em andamento
 
       const response = await fetch(
-        "http://localhost:8080/api/posts/updatePost",
+        "/api/posts/updatePost",
         {
           method: "PUT", // Use POST ou PUT, dependendo do endpoint
           headers: {

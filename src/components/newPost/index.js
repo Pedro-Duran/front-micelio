@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import MDEditor from "@uiw/react-md-editor";
 import Cabecalho from "../Cabecalho";
 
 function NovoPost() {
@@ -8,7 +9,7 @@ function NovoPost() {
   const [formData, setFormData] = useState({
     title: "",
     content: "",
-    author: { username: "" },
+    authorUsername: "",
     links: "",
     subject: "",
   });
@@ -20,7 +21,7 @@ function NovoPost() {
 
   // Buscar os subjects ao carregar a página
   useEffect(() => {
-    fetch("http://localhost:8080/api/posts/subjects")
+    fetch("/api/posts/subjects")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Erro ao carregar subjects");
@@ -44,7 +45,7 @@ function NovoPost() {
 
       // Faz a requisição ao endpoint para obter posts relacionados ao subject selecionado
       fetch(
-        `http://localhost:8080/api/posts/postsIdForThisSubject?subject=${value}`
+        `/api/posts/postsIdForThisSubject?subject=${value}`
       )
         .then((response) => {
           if (!response.ok) {
@@ -59,18 +60,17 @@ function NovoPost() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
-    if (name === "username") {
-      setFormData((prev) => ({
-        ...prev,
-        author: { ...prev.author, username: value },
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+  const parseWikilinks = (content) => {
+    const regex = /\[\[([^\[\]]+)\]\]/g;
+    const titles = [];
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      titles.push(match[1].trim());
     }
+    return [...new Set(titles)];
   };
 
   const handleSubmit = async (e) => {
@@ -78,12 +78,15 @@ function NovoPost() {
 
     const processedFormData = {
       ...formData,
-      links: formData.links.split(",").map((id) => id.trim()), // Processar os links como array
+      links: formData.links
+        ? formData.links.split(",").map((id) => parseInt(id.trim(), 10)).filter((id) => !isNaN(id))
+        : [],
+      wikilinks: parseWikilinks(formData.content),
     };
 
     try {
       const response = await fetch(
-        "http://localhost:8080/api/posts/createPost",
+        "/api/posts/createPost",
         {
           method: "POST",
           headers: {
@@ -124,19 +127,22 @@ function NovoPost() {
             </div>
             <div style={{ marginBottom: "10px" }}>
               <label>Conteúdo:</label>
-              <textarea
-                name="content"
-                value={formData.content}
-                onChange={handleChange}
-                style={{ width: "100%", padding: "8px" }}
-              ></textarea>
+              <div data-color-mode="light" style={{ marginTop: "4px" }}>
+                <MDEditor
+                  value={formData.content}
+                  onChange={(value) =>
+                    setFormData((prev) => ({ ...prev, content: value || "" }))
+                  }
+                  height={300}
+                />
+              </div>
             </div>
             <div style={{ marginBottom: "10px" }}>
               <label>Autor:</label>
               <input
                 type="text"
-                name="username"
-                value={formData.author.username}
+                name="authorUsername"
+                value={formData.authorUsername}
                 onChange={handleChange}
                 style={{ width: "100%", padding: "8px" }}
               />
