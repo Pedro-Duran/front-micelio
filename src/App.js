@@ -108,12 +108,22 @@ function App() {
               width={280} // Ajuste do tamanho do gráfico
               height={200}
               onNodeClick={(node) => navigate(`/post/${node.id}`)}
-              nodeCanvasObject={(node, ctx) => {
+              nodeCanvasObject={(node, ctx, globalScale) => {
                 const radius = node.isStub ? 3 : 5;
                 ctx.beginPath();
                 ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
                 ctx.fillStyle = node.isStub ? "rgba(100, 150, 200, 0.3)" : "#1a6b8a";
                 ctx.fill();
+
+                const fontSize = 12 / globalScale;
+                const opacity = Math.min(1, Math.max(0, (globalScale - 0.5) / 0.8));
+                if (opacity > 0) {
+                  ctx.font = `${fontSize}px Sans-Serif`;
+                  ctx.textAlign = "center";
+                  ctx.textBaseline = "top";
+                  ctx.fillStyle = `rgba(30, 30, 30, ${opacity})`;
+                  ctx.fillText(node.title, node.x, node.y + radius + 2 / globalScale);
+                }
               }}
             />
           </div>
