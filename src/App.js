@@ -1,11 +1,130 @@
 import React, { useEffect, useState } from "react";
+import { ForceGraph2D } from "react-force-graph";
 import { useNavigate } from "react-router-dom";
 import Cabecalho from "./components/Cabecalho";
+import SubjectsSidebar from "./components/SubjectsSidebar";
+
+function lerpColor(t) {
+  const r = Math.round(26 + t * (79 - 26));
+  const g = Math.round(74 + t * (195 - 74));
+  const b = Math.round(90 + t * (247 - 90));
+  return `rgb(${r},${g},${b})`;
+}
+
+function SubjectCard({ subject, nodes, links, onNodeClick }) {
+  const navigate = useNavigate();
+  const maxVc = Math.max(...nodes.map((n) => n.viewCount), 1);
+  const topPosts = [...nodes]
+    .filter((n) => !n.isStub)
+    .sort((a, b) => b.viewCount - a.viewCount)
+    .slice(0, 3);
+
+  const paintNode = (node, ctx, globalScale) => {
+    const t = node.isStub ? 0 : node.viewCount / maxVc;
+    const radius = node.isStub ? 3 : 5;
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
+    ctx.fillStyle = node.isStub ? "rgba(100, 150, 200, 0.3)" : lerpColor(t);
+    ctx.fill();
+
+    const opacity = Math.min(1, Math.max(0, (globalScale - 0.5) / 0.8));
+    if (opacity > 0) {
+      const fontSize = 12 / globalScale;
+      ctx.font = `${fontSize}px Sans-Serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillStyle = `rgba(220, 220, 220, ${opacity})`;
+      ctx.fillText(node.title, node.x, node.y + radius + 2 / globalScale);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        width: "300px",
+        background: "#242424",
+        borderRadius: "8px",
+        border: "1px solid #2e2e2e",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <h3
+        onClick={() => navigate(`/subject/${encodeURIComponent(subject)}`)}
+        style={{
+          margin: 0,
+          padding: "12px 14px 8px",
+          fontSize: "13px",
+          fontWeight: "bold",
+          color: "#e0e0e0",
+          borderBottom: "1px solid #2e2e2e",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          cursor: "pointer",
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = "#e0e0e0"; }}
+      >
+        {subject}
+        <span style={{ color: "#555", fontSize: "11px", fontWeight: "normal" }}>
+          {nodes.length} post{nodes.length !== 1 ? "s" : ""}
+        </span>
+      </h3>
+
+      <div style={{ background: "#1e1e1e" }}>
+        <ForceGraph2D
+          graphData={{ nodes, links }}
+          nodeLabel="title"
+          nodeCanvasObject={paintNode}
+          nodeCanvasObjectMode={() => "replace"}
+          linkColor={() => "rgba(22, 157, 211, 0.4)"}
+          width={300}
+          height={180}
+          onNodeClick={onNodeClick}
+          backgroundColor="#1e1e1e"
+        />
+      </div>
+
+      {topPosts.length > 0 && (
+        <ul style={{ listStyle: "none", margin: 0, padding: "8px 0", display: "flex", flexDirection: "column", gap: "2px" }}>
+          {topPosts.map((post, i) => (
+            <li key={post.id}>
+              <button
+                onClick={() => onNodeClick(post)}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#2e2e2e"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                style={{
+                  width: "100%",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "6px 14px",
+                  gap: "8px",
+                  textAlign: "left",
+                }}
+              >
+                <span style={{ color: "#3a3a3a", fontSize: "11px", width: "14px", flexShrink: 0 }}>{i + 1}.</span>
+                <span style={{ color: "#ccc", fontSize: "13px", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {post.title}
+                </span>
+                {post.viewCount > 0 && (
+                  <span style={{ color: "#4fc3f7", fontSize: "11px", flexShrink: 0 }}>{post.viewCount}</span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function App() {
-  const [graphData, setGraphData] = useState({ nodes: [], links: [] });
   const [groupedNodes, setGroupedNodes] = useState({});
-  const [activeSubject, setActiveSubject] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,20 +149,18 @@ function App() {
       const links = [];
       postsData.forEach((post) => {
         if (Array.isArray(post.links)) {
-          post.links.forEach((linkedId) => {
-            links.push({ source: post.id, target: linkedId });
-          });
+          post.links.forEach((linkedId) => links.push({ source: post.id, target: linkedId }));
         }
       });
 
-      const groupedBySubject = nodes.reduce((acc, node) => {
-        const subject = node.subject;
-        if (!acc[subject]) acc[subject] = { nodes: [], links: [] };
-        acc[subject].nodes.push(node);
+      const grouped = nodes.reduce((acc, node) => {
+        const s = node.subject;
+        if (!acc[s]) acc[s] = { nodes: [], links: [] };
+        acc[s].nodes.push(node);
         return acc;
       }, {});
 
-      Object.values(groupedBySubject).forEach((group) => {
+      Object.values(grouped).forEach((group) => {
         group.links = links.filter(
           (link) =>
             group.nodes.find((n) => n.id === link.source) &&
@@ -51,78 +168,15 @@ function App() {
         );
       });
 
-      setGraphData({ nodes, links });
-      setGroupedNodes(groupedBySubject);
+      setGroupedNodes(grouped);
     }).catch((err) => console.error(err));
   }, []);
-
-  const subjects = Object.keys(groupedNodes);
-  const visibleSubjects = activeSubject
-    ? [[activeSubject, groupedNodes[activeSubject]]]
-    : Object.entries(groupedNodes);
 
   return (
     <>
       <Cabecalho />
       <div style={{ display: "flex", background: "#1e1e1e", minHeight: "calc(100vh - 60px)" }}>
-        {/* Sidebar */}
-        <aside
-          style={{
-            width: "200px",
-            flexShrink: 0,
-            borderRight: "1px solid #2a2a2a",
-            padding: "20px 0",
-            display: "flex",
-            flexDirection: "column",
-            gap: "4px",
-          }}
-        >
-          <p style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px 16px" }}>
-            Categorias
-          </p>
-          <button
-            onClick={() => setActiveSubject(null)}
-            style={{
-              background: activeSubject === null ? "#1a3a4a" : "none",
-              border: "none",
-              borderLeft: activeSubject === null ? "3px solid #4fc3f7" : "3px solid transparent",
-              color: activeSubject === null ? "#4fc3f7" : "#999",
-              textAlign: "left",
-              padding: "8px 16px",
-              cursor: "pointer",
-              fontSize: "13px",
-              width: "100%",
-            }}
-          >
-            Todos
-            <span style={{ float: "right", color: "#555", fontSize: "11px" }}>{graphData.nodes.length}</span>
-          </button>
-          {subjects.map((s) => (
-            <button
-              key={s}
-              onClick={() => setActiveSubject(s)}
-              style={{
-                background: activeSubject === s ? "#1a3a4a" : "none",
-                border: "none",
-                borderLeft: activeSubject === s ? "3px solid #4fc3f7" : "3px solid transparent",
-                color: activeSubject === s ? "#4fc3f7" : "#999",
-                textAlign: "left",
-                padding: "8px 16px",
-                cursor: "pointer",
-                fontSize: "13px",
-                width: "100%",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {s}
-              <span style={{ float: "right", color: "#555", fontSize: "11px" }}>{groupedNodes[s].nodes.length}</span>
-            </button>
-          ))}
-        </aside>
-
-        {/* Cards de destaque */}
+        <SubjectsSidebar />
         <div
           style={{
             flex: 1,
@@ -133,85 +187,15 @@ function App() {
             alignContent: "flex-start",
           }}
         >
-          {visibleSubjects.map(([subject, { nodes }]) => {
-            const topPosts = [...nodes]
-              .filter((n) => !n.isStub)
-              .sort((a, b) => b.viewCount - a.viewCount)
-              .slice(0, 5);
-
-            return (
-              <div
-                key={subject}
-                style={{
-                  width: "280px",
-                  background: "#242424",
-                  borderRadius: "8px",
-                  padding: "16px",
-                  border: "1px solid #2e2e2e",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "12px",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <h3 style={{ color: "#e0e0e0", fontSize: "14px", fontWeight: "bold", margin: 0 }}>
-                    {subject}
-                  </h3>
-                  <span style={{ color: "#555", fontSize: "11px" }}>{nodes.length} post{nodes.length !== 1 ? "s" : ""}</span>
-                </div>
-
-                {topPosts.length === 0 ? (
-                  <p style={{ color: "#444", fontSize: "13px", margin: 0 }}>Nenhum post publicado.</p>
-                ) : (
-                  <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "2px" }}>
-                    {topPosts.map((post, i) => (
-                      <li key={post.id}>
-                        <button
-                          onClick={() => navigate(`/post/${post.id}`)}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = "#2e2e2e"; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
-                          style={{
-                            width: "100%",
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            padding: "7px 8px",
-                            borderRadius: "4px",
-                            textAlign: "left",
-                            gap: "8px",
-                          }}
-                        >
-                          <span style={{ color: "#3a3a3a", fontSize: "11px", flexShrink: 0, width: "14px" }}>
-                            {i + 1}.
-                          </span>
-                          <span
-                            style={{
-                              color: "#ccc",
-                              fontSize: "13px",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                              flex: 1,
-                            }}
-                          >
-                            {post.title}
-                          </span>
-                          {post.viewCount > 0 && (
-                            <span style={{ color: "#4fc3f7", fontSize: "11px", flexShrink: 0 }}>
-                              {post.viewCount}
-                            </span>
-                          )}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
+          {Object.entries(groupedNodes).map(([subject, { nodes, links }]) => (
+            <SubjectCard
+              key={subject}
+              subject={subject}
+              nodes={nodes}
+              links={links}
+              onNodeClick={(node) => navigate(`/post/${node.id}`)}
+            />
+          ))}
         </div>
       </div>
     </>

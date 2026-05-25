@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import App from "./App";
 import NovoPost from "./components/newPost";
 import PostPage from "./components/PostPage";
+import SubjectPage from "./components/SubjectPage";
 import Dashboard from "./components/Dashboard";
 import Timeline from "./components/Timeline";
 import Login from "./components/Login";
@@ -20,6 +21,7 @@ function MainRouter() {
         <Routes>
           <Route path="/" element={<App />} />
           <Route path="/post/:id" element={<PostPage />} />
+          <Route path="/subject/:name" element={<SubjectPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/timeline" element={<Timeline />} />
           <Route path="/login" element={<Login />} />

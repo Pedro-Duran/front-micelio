@@ -4,6 +4,7 @@ import { ForceGraph2D } from "react-force-graph";
 import ReactMarkdown from "react-markdown";
 import MDEditor from "@uiw/react-md-editor";
 import Cabecalho from "../Cabecalho";
+import SubjectsSidebar from "../SubjectsSidebar";
 import { registerEvent } from "../../utils/analytics";
 import { authFetch } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
@@ -83,6 +84,19 @@ function PostPage() {
       })
       .catch((err) => console.error(err));
   }, [postId]);
+
+  const backlinks = useMemo(() => {
+    return allLinks
+      .filter((link) => {
+        const tgt = typeof link.target === "object" ? link.target.id : link.target;
+        return tgt === postId;
+      })
+      .map((link) => {
+        const srcId = typeof link.source === "object" ? link.source.id : link.source;
+        return allNodes.find((n) => n.id === srcId);
+      })
+      .filter(Boolean);
+  }, [allLinks, allNodes, postId]);
 
   const localGraphData = useMemo(() => {
     if (!post) return { nodes: [], links: [] };
@@ -245,8 +259,9 @@ function PostPage() {
     return (
       <>
         <Cabecalho />
-        <div style={{ background: "#1e1e1e", color: "#aaa", minHeight: "100vh", padding: "40px" }}>
-          Carregando...
+        <div style={{ display: "flex", background: "#1e1e1e", minHeight: "calc(100vh - 60px)" }}>
+          <SubjectsSidebar />
+          <div style={{ color: "#aaa", padding: "40px" }}>Carregando...</div>
         </div>
       </>
     );
@@ -261,16 +276,10 @@ function PostPage() {
     <>
       <Cabecalho />
       <div style={{ display: "flex", background: "#1e1e1e", minHeight: "calc(100vh - 60px)" }}>
+        <SubjectsSidebar />
 
         {/* Conteúdo do post */}
         <div style={{ flex: 1, padding: "40px 60px", color: "#e0e0e0", overflowY: "auto" }}>
-          <button
-            onClick={() => navigate("/")}
-            style={{ background: "none", border: "none", color: "#888", cursor: "pointer", marginBottom: "24px", fontSize: "14px", padding: 0 }}
-          >
-            ← Voltar
-          </button>
-
           {editMode ? (
             <>
               <input
@@ -324,6 +333,26 @@ function PostPage() {
                   })}
                 </ReactMarkdown>
               </div>
+
+              {backlinks.length > 0 && (
+                <div style={{ marginTop: "48px", paddingTop: "24px", borderTop: "1px solid #2a2a2a" }}>
+                  <h4 style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", margin: "0 0 12px" }}>
+                    Backlinks
+                  </h4>
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {backlinks.map((node) => (
+                      <li key={node.id}>
+                        <Link
+                          to={`/post/${node.id}`}
+                          style={{ color: "#4fc3f7", fontSize: "14px", textDecoration: "none" }}
+                        >
+                          ← {node.title}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -343,7 +372,7 @@ function PostPage() {
                 nodeLabel="title"
                 linkColor={() => "rgba(22, 157, 211, 0.4)"}
                 width={228}
-                height={260}
+                height={220}
                 onNodeClick={(node) => {
                   registerEvent({ postId: node.id, eventType: "CLICK_NODE" });
                   navigate(`/post/${node.id}`);
@@ -357,6 +386,47 @@ function PostPage() {
                   ctx.fill();
                 }}
               />
+
+              {/* Posts linkados */}
+              {localGraphData.nodes.filter((n) => n.id !== postId).length > 0 && (
+                <>
+                  <h4 style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", margin: "8px 0 4px" }}>
+                    Posts linkados
+                  </h4>
+                  <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "2px" }}>
+                    {localGraphData.nodes
+                      .filter((n) => n.id !== postId)
+                      .map((node) => (
+                        <li key={node.id}>
+                          <button
+                            onClick={() => {
+                              registerEvent({ postId: node.id, eventType: "CLICK_NODE" });
+                              navigate(`/post/${node.id}`);
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "#2a2a2a"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                            style={{
+                              width: "100%",
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              textAlign: "left",
+                              padding: "5px 4px",
+                              borderRadius: "4px",
+                              color: node.isStub ? "#555" : "#aaa",
+                              fontSize: "12px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {node.isStub ? "◦ " : "· "}{node.title}
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                </>
+              )}
             </>
           ) : (
             <>
