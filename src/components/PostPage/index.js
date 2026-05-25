@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { ForceGraph2D } from "react-force-graph";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import MDEditor from "@uiw/react-md-editor";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
@@ -318,6 +319,7 @@ function PostPage() {
               </p>
               <div data-color-mode="dark" style={{ lineHeight: "1.8", fontSize: "15px" }}>
                 <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
                   components={{
                     a: ({ href, children }) =>
                       href && href.startsWith("/post/") ? (

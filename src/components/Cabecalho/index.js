@@ -1,8 +1,17 @@
 import React from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const Cabecalho = () => {
   const { isLoggedIn, username, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isHome = location.pathname === "/";
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <nav
@@ -15,31 +24,39 @@ const Cabecalho = () => {
         color: "#fff",
       }}
     >
-      <div style={{ fontSize: "1.5rem", fontWeight: "bold" }}>{"Puredo"}</div>
+      <Link
+        to="/"
+        style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#fff", textDecoration: "none" }}
+      >
+        Puredo
+      </Link>
+
       <ul style={{ display: "flex", listStyle: "none", gap: "15px", margin: 0, padding: 0, alignItems: "center" }}>
         {isLoggedIn && (
           <li>
-            <a href="/novoPost" style={{ textDecoration: "none", color: "white", fontWeight: "500" }}>
+            <Link to="/novoPost" style={{ textDecoration: "none", color: "white", fontWeight: "500" }}>
               Novo post
-            </a>
+            </Link>
+          </li>
+        )}
+        {!isHome && (
+          <li>
+            <Link to="/" style={{ textDecoration: "none", color: "white", fontWeight: "500" }}>
+              Posts
+            </Link>
           </li>
         )}
         <li>
-          <a href="/" style={{ textDecoration: "none", color: "white", fontWeight: "500" }}>
-            Posts
-          </a>
-        </li>
-        <li>
-          <a href="/dashboard" style={{ textDecoration: "none", color: "white", fontWeight: "500" }}>
+          <Link to="/dashboard" style={{ textDecoration: "none", color: "white", fontWeight: "500" }}>
             Analytics
-          </a>
+          </Link>
         </li>
         {isLoggedIn ? (
           <>
             <li style={{ color: "#888", fontSize: "14px" }}>{username}</li>
             <li>
               <button
-                onClick={logout}
+                onClick={handleLogout}
                 style={{ background: "none", border: "1px solid #444", borderRadius: "4px", color: "#888", cursor: "pointer", padding: "4px 12px", fontSize: "13px" }}
               >
                 Sair
@@ -48,9 +65,9 @@ const Cabecalho = () => {
           </>
         ) : (
           <li>
-            <a href="/login" style={{ textDecoration: "none", color: "white", fontWeight: "500" }}>
+            <Link to="/login" style={{ textDecoration: "none", color: "white", fontWeight: "500" }}>
               Login
-            </a>
+            </Link>
           </li>
         )}
       </ul>
