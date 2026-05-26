@@ -58,7 +58,7 @@ function PostPage() {
           id: p.id,
           title: p.title || "Sem título",
           content: p.content || "",
-          author: p.authorUsername || "Desconhecido",
+          author: p.author?.username || "Desconhecido",
           subject: p.subject || "Sem categoria",
           isStub: p.isStub || false,
           createdAt: p.createdAt || null,
@@ -215,12 +215,23 @@ function PostPage() {
     setTlRunning(true);
   };
 
+  const parseWikilinks = (content) => {
+    const regex = /\[\[([^\[\]]+)\]\]/g;
+    const titles = [];
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      titles.push(match[1].trim());
+    }
+    return [...new Set(titles)];
+  };
+
   const handleSave = async () => {
     const body = {
       id: postId,
       title: editedTitle,
       content: editedContent,
       links: [],
+      wikilinks: parseWikilinks(editedContent),
       subject: post.subject,
     };
 
@@ -315,7 +326,15 @@ function PostPage() {
                 </div>
               </div>
               <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px" }}>
-                Autor: {post.author} · {post.subject}
+                Autor: {post.author} ·{" "}
+                <Link
+                  to={`/subject/${encodeURIComponent(post.subject)}`}
+                  style={{ color: "#888", textDecoration: "none", borderBottom: "1px solid #444" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; e.currentTarget.style.borderBottomColor = "#4fc3f7"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "#888"; e.currentTarget.style.borderBottomColor = "#444"; }}
+                >
+                  {post.subject}
+                </Link>
               </p>
               <div data-color-mode="dark" style={{ lineHeight: "1.8", fontSize: "15px" }}>
                 <ReactMarkdown

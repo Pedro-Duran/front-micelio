@@ -9,6 +9,7 @@ import {
   Cell,
 } from "recharts";
 import Cabecalho from "../Cabecalho";
+import { authFetch } from "../../utils/api";
 
 const ACCENT = "#4fc3f7";
 const ACCENT_DIM = "#1a6b8a";
@@ -70,7 +71,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/events/summary")
+    authFetch("/api/events/summary")
       .then((res) => {
         if (!res.ok) throw new Error("Erro ao buscar analytics");
         return res.json();

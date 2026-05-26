@@ -3,6 +3,7 @@ import { ForceGraph2D } from "react-force-graph";
 import { useNavigate } from "react-router-dom";
 import Cabecalho from "./components/Cabecalho";
 import SubjectsSidebar from "./components/SubjectsSidebar";
+import { authFetch } from "./utils/api";
 
 function lerpColor(t) {
   const r = Math.round(26 + t * (79 - 26));
@@ -133,7 +134,7 @@ function App() {
         if (!r.ok) throw new Error("Erro ao buscar posts");
         return r.json();
       }),
-      fetch("/api/events/summary").then((r) => r.json()).catch(() => []),
+      authFetch("/api/events/summary").then((r) => r.json()).catch(() => []),
     ]).then(([postsData, summaryData]) => {
       const vcMap = {};
       summaryData.forEach((s) => { vcMap[s.postId] = s.viewCount || 0; });

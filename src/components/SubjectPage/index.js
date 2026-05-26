@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { ForceGraph2D } from "react-force-graph";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
+import { authFetch } from "../../utils/api";
 
 function lerpColor(t) {
   const r = Math.round(26 + t * (79 - 26));
@@ -22,24 +23,20 @@ function stripMarkdown(text) {
     .trim();
 }
 
-const PREVIEW_LIMIT = 280;
-
 function SubjectPage() {
   const { name } = useParams();
   const subject = decodeURIComponent(name);
   const [nodes, setNodes] = useState([]);
   const [links, setLinks] = useState([]);
   const [topPost, setTopPost] = useState(null);
-  const [expanded, setExpanded] = useState(false);
   const containerRef = useRef(null);
   const [graphWidth, setGraphWidth] = useState(600);
   const navigate = useNavigate();
 
   useEffect(() => {
-    setExpanded(false);
     Promise.all([
       fetch("/api/posts/verPosts").then((r) => r.json()),
-      fetch("/api/events/summary").then((r) => r.json()).catch(() => []),
+      authFetch("/api/events/summary").then((r) => r.json()).catch(() => []),
     ]).then(([postsData, summaryData]) => {
       const vcMap = {};
       summaryData.forEach((s) => { vcMap[s.postId] = s.viewCount || 0; });
@@ -108,14 +105,8 @@ function SubjectPage() {
   };
 
   const previewText = topPost ? stripMarkdown(topPost.content) : "";
-  const isLong = previewText.length > PREVIEW_LIMIT;
-  const displayText = expanded || !isLong
-    ? previewText
-    : previewText.slice(0, PREVIEW_LIMIT) + "…";
-
-  const OVERLAY_PREVIEW = 160;
-  const overlayText = previewText.length > OVERLAY_PREVIEW
-    ? previewText.slice(0, OVERLAY_PREVIEW) + "…"
+  const overlayText = previewText.length > 160
+    ? previewText.slice(0, 160) + "…"
     : previewText;
 
   return (
@@ -151,7 +142,7 @@ function SubjectPage() {
                   <ForceGraph2D
                     graphData={{ nodes, links }}
                     width={graphWidth}
-                    height={420}
+                    height={280}
                     nodeLabel="title"
                     nodeCanvasObject={paintNode}
                     nodeCanvasObjectMode={() => "replace"}
@@ -169,8 +160,8 @@ function SubjectPage() {
                       bottom: 0,
                       left: 0,
                       right: 0,
-                      background: "linear-gradient(to bottom, transparent 0%, rgba(18,18,18,0.85) 30%, rgba(18,18,18,0.97) 60%)",
-                      padding: "60px 24px 22px",
+                      background: "linear-gradient(to bottom, transparent 0%, rgba(18,18,18,0.88) 40%, rgba(18,18,18,0.97) 65%)",
+                      padding: "40px 24px 20px",
                       pointerEvents: "none",
                     }}
                   >
