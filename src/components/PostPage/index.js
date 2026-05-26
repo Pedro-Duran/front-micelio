@@ -54,6 +54,7 @@ function PostPage() {
         if (!res.ok) throw new Error("Erro na requisição");
         return res.json();
       })
+      .then((raw) => Array.isArray(raw) ? raw : (raw.content ?? []))
       .then((data) => {
         const nodes = data.map((p) => ({
           id: p.id,

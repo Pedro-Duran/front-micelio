@@ -21,6 +21,7 @@ function Timeline() {
   useEffect(() => {
     fetch("/api/posts/verPosts")
       .then((res) => res.json())
+      .then((raw) => Array.isArray(raw) ? raw : (raw.content ?? []))
       .then((data) => {
         const sorted = data
           .filter((p) => !p.isStub)

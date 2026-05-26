@@ -35,7 +35,7 @@ function SubjectPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/posts/verPosts").then((r) => r.json()),
+      fetch("/api/posts/verPosts").then((r) => r.json()).then((d) => Array.isArray(d) ? d : (d.content ?? [])),
       authFetch("/api/events/summary").then((r) => r.json()).catch(() => []),
     ]).then(([postsData, summaryData]) => {
       const vcMap = {};

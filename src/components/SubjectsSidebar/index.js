@@ -13,6 +13,7 @@ function SubjectsSidebar() {
     fetch("/api/posts/verPosts")
       .then((r) => (r.ok ? r.json() : []))
       .catch(() => [])
+      .then((raw) => Array.isArray(raw) ? raw : (raw.content ?? []))
       .then((data) => {
         const counts = {};
         data.forEach((post) => {

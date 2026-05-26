@@ -102,9 +102,33 @@ function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, de
   const [replyContent, setReplyContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState(comment.content);
+  const [saving, setSaving] = useState(false);
+  const [displayContent, setDisplayContent] = useState(comment.content);
 
-  const canDelete = currentUsername && currentUsername === comment.authorUsername;
+  const canEdit = currentUsername && currentUsername === comment.authorUsername;
+  const canDelete = canEdit;
   const maxDepthIndent = Math.min(depth, 4);
+
+  const submitEdit = async () => {
+    if (!editContent.trim() || editContent === displayContent) { setEditing(false); return; }
+    setSaving(true);
+    try {
+      const res = await authFetch(`/api/comments/${comment.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ content: editContent }),
+      });
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      setDisplayContent(updated.content);
+      setEditing(false);
+    } catch {
+      alert("Erro ao editar comentário.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const submitReply = async () => {
     if (!replyContent.trim()) return;
@@ -152,9 +176,37 @@ function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, de
           </span>
           <span style={{ color: "#444", fontSize: "11px" }}>{timeAgo(comment.createdAt)}</span>
         </div>
-        <p style={{ color: "#bbb", fontSize: "14px", lineHeight: "1.6", margin: "0 0 8px" }}>
-          {comment.content}
-        </p>
+        {editing ? (
+          <div style={{ marginBottom: "8px" }}>
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              autoFocus
+              rows={3}
+              style={{ ...inputStyle, width: "100%", resize: "vertical", boxSizing: "border-box" }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitEdit(); } }}
+            />
+            <div style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
+              <button
+                onClick={submitEdit}
+                disabled={saving || !editContent.trim()}
+                style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "6px 14px", fontSize: "12px", fontWeight: "bold", cursor: saving || !editContent.trim() ? "default" : "pointer" }}
+              >
+                {saving ? "..." : "Salvar"}
+              </button>
+              <button
+                onClick={() => { setEditing(false); setEditContent(displayContent); }}
+                style={{ background: "none", border: "1px solid #333", borderRadius: "4px", padding: "6px 10px", color: "#666", fontSize: "12px", cursor: "pointer" }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p style={{ color: "#bbb", fontSize: "14px", lineHeight: "1.6", margin: "0 0 8px" }}>
+            {displayContent}
+          </p>
+        )}
         <div style={{ display: "flex", gap: "14px" }}>
           <button
             onClick={handleReplyClick}
@@ -164,6 +216,16 @@ function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, de
           >
             Responder
           </button>
+          {canEdit && !editing && (
+            <button
+              onClick={() => setEditing(true)}
+              style={{ background: "none", border: "none", color: "#555", fontSize: "12px", cursor: "pointer", padding: 0 }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#aaa"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; }}
+            >
+              Editar
+            </button>
+          )}
           {canDelete && (
             <button
               onClick={() => onDelete(comment.id)}

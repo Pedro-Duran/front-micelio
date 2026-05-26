@@ -133,7 +133,7 @@ function App() {
       fetch("/api/posts/verPosts").then((r) => {
         if (!r.ok) throw new Error("Erro ao buscar posts");
         return r.json();
-      }),
+      }).then((d) => Array.isArray(d) ? d : (d.content ?? [])),
       authFetch("/api/events/summary").then((r) => r.json()).catch(() => []),
     ]).then(([postsData, summaryData]) => {
       const vcMap = {};
