@@ -8,6 +8,9 @@ import SubjectPage from "./components/SubjectPage";
 import Dashboard from "./components/Dashboard";
 import Timeline from "./components/Timeline";
 import Login from "./components/Login";
+import FeedPage from "./components/FeedPage";
+import UserProfile from "./components/UserProfile";
+import UsersPage from "./components/UsersPage";
 
 function ProtectedRoute({ children }) {
   const { isLoggedIn } = useAuth();
@@ -25,6 +28,9 @@ function MainRouter() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/timeline" element={<Timeline />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/user/:username" element={<UserProfile />} />
           <Route path="/novoPost" element={<ProtectedRoute><NovoPost /></ProtectedRoute>} />
         </Routes>
       </Router>
