@@ -9,6 +9,7 @@ import SubjectsSidebar from "../SubjectsSidebar";
 import { registerEvent } from "../../utils/analytics";
 import { authFetch } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
+import Comments from "../Comments";
 
 const TL_SPEEDS = { Devagar: 1500, Normal: 800, "Rápido": 300 };
 
@@ -374,6 +375,8 @@ function PostPage() {
                   </ul>
                 </div>
               )}
+
+              <Comments postId={postId} />
             </>
           )}
         </div>
