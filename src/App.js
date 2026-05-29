@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Cabecalho from "./components/Cabecalho";
 import SubjectsSidebar from "./components/SubjectsSidebar";
 import SubjectCard from "./components/SubjectCard";
-import { authFetch } from "./utils/api";
+import { authFetch, parsePage } from "./utils/api";
 
 function App() {
   const [groupedNodes, setGroupedNodes] = useState({});
@@ -14,7 +14,7 @@ function App() {
       fetch("/api/posts/verPosts").then((r) => {
         if (!r.ok) throw new Error("Erro ao buscar posts");
         return r.json();
-      }).then((d) => Array.isArray(d) ? d : (d.content ?? [])),
+      }).then((d) => parsePage(d).content),
       authFetch("/api/events/summary").then((r) => r.json()).catch(() => []),
     ]).then(([postsData, summaryData]) => {
       const vcMap = {};
@@ -23,6 +23,7 @@ function App() {
       const nodes = postsData.map((post) => ({
         id: post.id,
         title: post.title || "Título não disponível",
+        content: post.content || "",
         subject: post.subject || "Sem categoria",
         isStub: post.isStub || false,
         viewCount: vcMap[post.id] || 0,
@@ -76,6 +77,7 @@ function App() {
               nodes={nodes}
               links={links}
               onNodeClick={(node) => navigate(`/post/${node.id}`)}
+              overlay
             />
           ))}
         </div>

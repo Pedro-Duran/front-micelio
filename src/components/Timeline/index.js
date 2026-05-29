@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { ForceGraph2D } from "react-force-graph";
 import Cabecalho from "../Cabecalho";
+import { parsePage } from "../../utils/api";
 
 const SPEEDS = { Devagar: 2000, Normal: 1000, "Rápido": 400 };
 
@@ -21,7 +22,7 @@ function Timeline() {
   useEffect(() => {
     fetch("/api/posts/verPosts")
       .then((res) => res.json())
-      .then((raw) => Array.isArray(raw) ? raw : (raw.content ?? []))
+      .then((raw) => parsePage(raw).content)
       .then((data) => {
         const sorted = data
           .filter((p) => !p.isStub)

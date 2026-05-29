@@ -3,13 +3,14 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { ForceGraph2D } from "react-force-graph";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import MDEditor from "@uiw/react-md-editor";
+import MDEditor, { commands } from "@uiw/react-md-editor";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
 import { registerEvent } from "../../utils/analytics";
-import { authFetch } from "../../utils/api";
+import { authFetch, authFetchMultipart, parsePage } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import Comments from "../Comments";
+import StubModal from "../StubModal";
 
 const TL_SPEEDS = { Devagar: 1500, Normal: 800, "Rápido": 300 };
 
@@ -27,6 +28,9 @@ function PostPage() {
   const [editedContent, setEditedContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  const [stubModal, setStubModal] = useState(null); // { id, title }
+  const [lightboxSrc, setLightboxSrc] = useState(null);
+
   // Sidebar: "graph" | "timeline"
   const [sidebarMode, setSidebarMode] = useState("graph");
   const [tlIndex, setTlIndex] = useState(0);
@@ -38,6 +42,8 @@ function PostPage() {
   const sidebarRef = useRef();
   const recorderRef = useRef();
   const chunksRef = useRef([]);
+  const imageInputRef = useRef(null);
+  const editorApiRef = useRef(null);
 
   // VIEW analytics
   useEffect(() => {
@@ -54,7 +60,7 @@ function PostPage() {
         if (!res.ok) throw new Error("Erro na requisição");
         return res.json();
       })
-      .then((raw) => Array.isArray(raw) ? raw : (raw.content ?? []))
+      .then((raw) => parsePage(raw).content)
       .then((data) => {
         const nodes = data.map((p) => ({
           id: p.id,
@@ -217,6 +223,40 @@ function PostPage() {
     setTlRunning(true);
   };
 
+  const imageUploadCommand = {
+    name: "imageUpload",
+    keyCommand: "imageUpload",
+    buttonProps: { "aria-label": "Inserir imagem", title: "Inserir imagem" },
+    icon: (
+      <svg viewBox="0 0 16 16" width="12px" height="12px" fill="currentColor">
+        <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+        <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
+      </svg>
+    ),
+    execute: (_state, api) => {
+      editorApiRef.current = api;
+      imageInputRef.current?.click();
+    },
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await authFetchMultipart("/api/posts/images", formData);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const url = data.url;
+      editorApiRef.current?.replaceSelection(`![${file.name}](${url})`);
+    } catch {
+      alert("Erro ao enviar imagem.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
   const parseWikilinks = (content) => {
     const regex = /\[\[([^\[\]]+)\]\]/g;
     const titles = [];
@@ -288,6 +328,30 @@ function PostPage() {
 
   return (
     <>
+      {stubModal && (
+        <StubModal
+          postId={stubModal.id}
+          postTitle={stubModal.title}
+          onClose={() => setStubModal(null)}
+        />
+      )}
+      {lightboxSrc && (
+        <div
+          onClick={() => setLightboxSrc(null)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 1000,
+            background: "rgba(0,0,0,0.85)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "zoom-out",
+          }}
+        >
+          <img
+            src={lightboxSrc}
+            alt=""
+            style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain", borderRadius: "4px" }}
+          />
+        </div>
+      )}
       <Cabecalho />
       <div style={{ display: "flex", background: "#1e1e1e", minHeight: "calc(100vh - 60px)" }}>
         <SubjectsSidebar />
@@ -301,8 +365,20 @@ function PostPage() {
                 onChange={(e) => setEditedTitle(e.target.value)}
                 style={{ width: "100%", fontSize: "24px", fontWeight: "bold", background: "#2a2a2a", color: "#fff", border: "1px solid #444", borderRadius: "4px", padding: "8px", marginBottom: "16px", boxSizing: "border-box" }}
               />
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                style={{ display: "none" }}
+                onChange={handleImageUpload}
+              />
               <div data-color-mode="dark" style={{ marginBottom: "16px" }}>
-                <MDEditor value={editedContent} onChange={(v) => setEditedContent(v || "")} height={300} />
+                <MDEditor
+                  value={editedContent}
+                  onChange={(v) => setEditedContent(v || "")}
+                  height={300}
+                  extraCommands={[imageUploadCommand]}
+                />
               </div>
               <div style={{ display: "flex", gap: "12px" }}>
                 <button onClick={handleSave} disabled={isSaving} style={{ padding: "8px 20px", background: "#4caf50", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}>
@@ -348,6 +424,23 @@ function PostPage() {
                       ) : (
                         <a href={href} target="_blank" rel="noreferrer">{children}</a>
                       ),
+                    img: ({ src, alt }) => (
+                      <img
+                        src={src}
+                        alt={alt}
+                        onClick={() => setLightboxSrc(src)}
+                        style={{
+                          maxWidth: "380px",
+                          maxHeight: "260px",
+                          objectFit: "contain",
+                          display: "block",
+                          margin: "12px 0",
+                          borderRadius: "4px",
+                          cursor: "zoom-in",
+                          border: "1px solid #2a2a2a",
+                        }}
+                      />
+                    ),
                   }}
                 >
                   {editedContent.replace(/\[\[([^\[\]]+)\]\]/g, (_, title) => {
@@ -399,6 +492,7 @@ function PostPage() {
                 width={228}
                 height={220}
                 onNodeClick={(node) => {
+                  if (node.isStub) { setStubModal({ id: node.id, title: node.title }); return; }
                   registerEvent({ postId: node.id, eventType: "CLICK_NODE" });
                   navigate(`/post/${node.id}`);
                 }}

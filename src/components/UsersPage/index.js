@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
-import { authFetch } from "../../utils/api";
+import Avatar from "../Avatar";
+import { authFetch, parsePage } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 
 function UsersPage() {
@@ -31,8 +32,7 @@ function UsersPage() {
       .then((r) => (r.ok ? r.json() : []))
       .catch(() => [])
       .then((data) => {
-        const list = Array.isArray(data) ? data : (data.content ?? []);
-        setUsers(list);
+        setUsers(parsePage(data).content);
         setLoading(false);
       });
   }, [searchParams]);
@@ -44,8 +44,7 @@ function UsersPage() {
       .then((r) => (r.ok ? r.json() : []))
       .catch(() => [])
       .then((data) => {
-        const list = Array.isArray(data) ? data : (data.content ?? []);
-        setFollowingSet(new Set(list.map((u) => u.username)));
+        setFollowingSet(new Set(parsePage(data).content.map((u) => u.username)));
       });
   }, [isLoggedIn, currentUser]);
 
@@ -135,11 +134,16 @@ function UsersPage() {
                   >
                     <Link
                       to={`/user/${user.username}`}
-                      style={{ color: "#e0e0e0", fontSize: "14px", textDecoration: "none" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.color = "#e0e0e0"; }}
+                      style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}
                     >
-                      {user.username}
+                      <Avatar avatarUrl={user.avatarUrl} username={user.username} size={34} />
+                      <span
+                        style={{ color: "#e0e0e0", fontSize: "14px" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = "#e0e0e0"; }}
+                      >
+                        {user.username}
+                      </span>
                     </Link>
                     {isLoggedIn && !isOwn && (
                       <button

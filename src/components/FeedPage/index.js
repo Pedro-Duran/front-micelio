@@ -1,82 +1,68 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
-import PostCard from "../PostCard";
-import { authFetch } from "../../utils/api";
+import SubjectCard from "../SubjectCard";
+import { authFetch, parsePage } from "../../utils/api";
+
+function groupBySubject(posts) {
+  const groups = {};
+  posts.forEach((p) => {
+    const subj = p.subject || "Sem categoria";
+    if (!groups[subj]) groups[subj] = { nodes: [], links: [] };
+    groups[subj].nodes.push({
+      id: p.id,
+      title: p.title || "Sem título",
+      content: p.content || "",
+      isStub: p.isStub || false,
+      viewCount: 0,
+    });
+  });
+  posts.forEach((p) => {
+    if (!Array.isArray(p.links)) return;
+    const subj = p.subject || "Sem categoria";
+    const ids = new Set(groups[subj].nodes.map((n) => n.id));
+    p.links.forEach((linkedId) => {
+      if (ids.has(linkedId)) groups[subj].links.push({ source: p.id, target: linkedId });
+    });
+  });
+  return groups;
+}
 
 function FeedPage() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState("explore");
-  const [posts, setPosts] = useState([]);
-  const [hasMore, setHasMore] = useState(true);
+  const [groupedSubjects, setGroupedSubjects] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const tabRef = useRef("explore");
-  const pageRef = useRef(0);
-  const hasMoreRef = useRef(true);
-  const loadingRef = useRef(false);
-  const sentinelRef = useRef(null);
-
-  const loadMore = useCallback(async () => {
-    if (loadingRef.current || !hasMoreRef.current) return;
-    loadingRef.current = true;
+  useEffect(() => {
+    setGroupedSubjects({});
     setLoading(true);
-
     const endpoint =
-      tabRef.current === "feed"
-        ? `/api/posts/feed?page=${pageRef.current}&size=10`
-        : `/api/posts/explore?page=${pageRef.current}&size=10`;
+      tab === "feed"
+        ? `/api/posts/feed?page=0&size=200`
+        : `/api/posts/explore?page=0&size=200`;
 
-    try {
-      const res = await authFetch(endpoint);
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      const newPosts = data.content || [];
-      const isFirst = pageRef.current === 0;
-      setPosts((prev) => (isFirst ? newPosts : [...prev, ...newPosts]));
-      hasMoreRef.current = !data.last;
-      setHasMore(!data.last);
-      pageRef.current += 1;
-    } catch {
-      hasMoreRef.current = false;
-      setHasMore(false);
-    } finally {
-      loadingRef.current = false;
-      setLoading(false);
-    }
-  }, []);
+    authFetch(endpoint)
+      .then((r) => (r.ok ? r.json() : { content: [] }))
+      .catch(() => ({ content: [] }))
+      .then((raw) => {
+        setGroupedSubjects(groupBySubject(parsePage(raw).content));
+        setLoading(false);
+      });
+  }, [tab]);
 
-  // Reset and load first page when tab changes
-  useEffect(() => {
-    tabRef.current = tab;
-    pageRef.current = 0;
-    hasMoreRef.current = true;
-    loadingRef.current = false;
-    setPosts([]);
-    setHasMore(true);
-    loadMore();
-  }, [tab, loadMore]);
-
-  // Infinite scroll observer
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) loadMore(); },
-      { threshold: 0, rootMargin: "120px" }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [loadMore]);
+  const isEmpty = !loading && Object.keys(groupedSubjects).length === 0;
 
   return (
     <>
       <Cabecalho />
       <div style={{ display: "flex", background: "#1e1e1e", minHeight: "calc(100vh - 60px)" }}>
         <SubjectsSidebar />
-        <div style={{ flex: 1, maxWidth: "680px", margin: "0 auto", padding: "32px 24px" }}>
+        <div style={{ flex: 1, padding: "32px 32px", overflowY: "auto" }}>
 
           {/* Tabs */}
-          <div style={{ display: "flex", gap: "0", marginBottom: "28px", borderBottom: "1px solid #2a2a2a" }}>
+          <div style={{ display: "flex", marginBottom: "28px", borderBottom: "1px solid #2a2a2a" }}>
             {[
               { key: "feed", label: "Seguindo" },
               { key: "explore", label: "Explorar" },
@@ -101,8 +87,13 @@ function FeedPage() {
             ))}
           </div>
 
+          {/* Loading */}
+          {loading && (
+            <p style={{ color: "#444", fontSize: "13px" }}>Carregando...</p>
+          )}
+
           {/* Empty feed CTA */}
-          {tab === "feed" && !loading && posts.length === 0 && !hasMore && (
+          {isEmpty && tab === "feed" && (
             <div style={{ textAlign: "center", padding: "60px 20px" }}>
               <p style={{ color: "#555", fontSize: "15px", marginBottom: "16px" }}>
                 Você ainda não segue ninguém.
@@ -116,25 +107,24 @@ function FeedPage() {
             </div>
           )}
 
-          {/* Post list */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {posts.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
-          </div>
-
-          <div ref={sentinelRef} style={{ height: "1px" }} />
-
-          {loading && (
-            <p style={{ color: "#444", fontSize: "13px", textAlign: "center", padding: "24px 0" }}>
-              Carregando...
-            </p>
+          {isEmpty && tab === "explore" && (
+            <p style={{ color: "#444", fontSize: "14px" }}>Nenhum post encontrado.</p>
           )}
 
-          {!loading && !hasMore && posts.length > 0 && (
-            <p style={{ color: "#333", fontSize: "12px", textAlign: "center", padding: "24px 0" }}>
-              — fim —
-            </p>
+          {/* Subject cards */}
+          {!loading && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", alignContent: "flex-start" }}>
+              {Object.entries(groupedSubjects).map(([subject, { nodes, links }]) => (
+                <SubjectCard
+                  key={subject}
+                  subject={subject}
+                  nodes={nodes}
+                  links={links}
+                  onNodeClick={(node) => navigate(`/post/${node.id}`)}
+                  overlay
+                />
+              ))}
+            </div>
           )}
 
         </div>

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
 import SubjectCard from "../SubjectCard";
-import { authFetch } from "../../utils/api";
+import Avatar from "../Avatar";
+import { authFetch, authFetchMultipart, parsePage } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 
 function UserProfile() {
@@ -11,6 +12,12 @@ function UserProfile() {
   const navigate = useNavigate();
   const { isLoggedIn, username: currentUser } = useAuth();
   const isOwnProfile = currentUser === username;
+  const fileInputRef = useRef(null);
+
+  const [userId, setUserId] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [avatarHover, setAvatarHover] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
@@ -19,6 +26,21 @@ function UserProfile() {
 
   const [groupedSubjects, setGroupedSubjects] = useState({});
   const [loading, setLoading] = useState(true);
+
+  // Fetch user info (id + avatarUrl) via search
+  useEffect(() => {
+    fetch(`/api/users/search?username=${encodeURIComponent(username)}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .catch(() => [])
+      .then((raw) => {
+        const list = Array.isArray(raw) ? raw : (raw.content ?? []);
+        const match = list.find((u) => u.username === username) || list[0];
+        if (match) {
+          setUserId(match.id);
+          setAvatarUrl(match.avatarUrl || null);
+        }
+      });
+  }, [username]);
 
   // Fetch social stats
   useEffect(() => {
@@ -42,50 +64,60 @@ function UserProfile() {
     });
   }, [username, isLoggedIn, isOwnProfile]);
 
-  // Fetch all posts and group by subject
+  // Fetch all posts and group by subject.
+  // verPosts is used as a supplement to capture stubs that search may exclude.
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/posts/search?username=${encodeURIComponent(username)}&page=0&size=1000`)
-      .then((r) => (r.ok ? r.json() : { content: [] }))
-      .catch(() => ({ content: [] }))
-      .then((raw) => {
-        const posts = Array.isArray(raw) ? raw : (raw.content ?? []);
+    Promise.all([
+      fetch(`/api/posts/search?username=${encodeURIComponent(username)}&page=0&size=1000`)
+        .then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+      fetch(`/api/posts/verPosts?page=0&size=1000`)
+        .then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+    ]).then(([searchRaw, verRaw]) => {
+      const searchPosts = parsePage(searchRaw).content;
+      const allPosts = parsePage(verRaw).content;
 
-        const groups = {};
-        posts.forEach((p) => {
-          const subj = p.subject || "Sem categoria";
-          if (!groups[subj]) groups[subj] = { nodes: [], links: [] };
-          groups[subj].nodes.push({
-            id: p.id,
-            title: p.title || "Sem título",
-            content: p.content || "",
-            isStub: p.isStub || false,
-            viewCount: 0,
-          });
-        });
-
-        // Build intra-subject links from post.links field
-        posts.forEach((p) => {
-          if (!Array.isArray(p.links)) return;
-          const subj = p.subject || "Sem categoria";
-          const subjectIds = new Set(groups[subj].nodes.map((n) => n.id));
-          p.links.forEach((linkedId) => {
-            if (subjectIds.has(linkedId)) {
-              groups[subj].links.push({ source: p.id, target: linkedId });
-            }
-          });
-        });
-
-        setGroupedSubjects(groups);
-        setLoading(false);
+      // Stubs from verPosts that belong to this user and aren't already in search results
+      const searchIds = new Set(searchPosts.map((p) => p.id));
+      const missingStubs = allPosts.filter((p) => {
+        const author = p.authorUsername || p.author?.username;
+        return p.isStub && author === username && !searchIds.has(p.id);
       });
+
+      const posts = [...searchPosts, ...missingStubs];
+
+      const groups = {};
+      posts.forEach((p) => {
+        const subj = p.subject || "Sem categoria";
+        if (!groups[subj]) groups[subj] = { nodes: [], links: [] };
+        groups[subj].nodes.push({
+          id: p.id,
+          title: p.title || "Sem título",
+          content: p.content || "",
+          isStub: p.isStub || false,
+          viewCount: 0,
+        });
+      });
+      posts.forEach((p) => {
+        if (!Array.isArray(p.links)) return;
+        const subj = p.subject || "Sem categoria";
+        const subjectIds = new Set(groups[subj].nodes.map((n) => n.id));
+        p.links.forEach((linkedId) => {
+          if (subjectIds.has(linkedId))
+            groups[subj].links.push({ source: p.id, target: linkedId });
+        });
+      });
+      setGroupedSubjects(groups);
+      setLoading(false);
+    });
   }, [username]);
 
   const handleFollow = async () => {
     setFollowLoading(true);
     try {
-      const method = isFollowing ? "DELETE" : "POST";
-      const res = await authFetch(`/api/users/${username}/follow`, { method });
+      const res = await authFetch(`/api/users/${username}/follow`, {
+        method: isFollowing ? "DELETE" : "POST",
+      });
       if (!res.ok) throw new Error();
       setIsFollowing((prev) => !prev);
       const updated = await fetch(`/api/users/${username}/followers`)
@@ -93,9 +125,28 @@ function UserProfile() {
         .catch(() => followers);
       setFollowers(updated);
     } catch {
-      // silently fail
+      // ignore
     } finally {
       setFollowLoading(false);
+    }
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await authFetchMultipart(`/api/users/${userId}/avatar`, formData);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setAvatarUrl(data.avatarUrl);
+    } catch {
+      alert("Erro ao enviar foto de perfil.");
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = "";
     }
   };
 
@@ -108,14 +159,45 @@ function UserProfile() {
 
           {/* Profile header */}
           <div style={{ marginBottom: "32px", paddingBottom: "24px", borderBottom: "1px solid #2a2a2a", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <h2 style={{ color: "#e0e0e0", margin: "0 0 8px", fontSize: "22px", fontWeight: "600" }}>
-                {username}
-              </h2>
-              <p style={{ color: "#555", fontSize: "13px", margin: 0 }}>
-                {followers.length} seguidor{followers.length !== 1 ? "es" : ""} · {following.length} seguindo
-              </p>
+            <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+
+              {/* Avatar */}
+              <div
+                style={{ position: "relative", cursor: isOwnProfile ? "pointer" : "default" }}
+                onMouseEnter={() => isOwnProfile && setAvatarHover(true)}
+                onMouseLeave={() => setAvatarHover(false)}
+                onClick={() => isOwnProfile && fileInputRef.current?.click()}
+              >
+                <Avatar avatarUrl={avatarUrl} username={username} size={72} />
+                {isOwnProfile && (avatarHover || uploadingAvatar) && (
+                  <div style={{
+                    position: "absolute", inset: 0, borderRadius: "50%",
+                    background: "rgba(0,0,0,0.55)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "18px",
+                  }}>
+                    {uploadingAvatar ? "⏳" : "📷"}
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  style={{ display: "none" }}
+                  onChange={handleAvatarChange}
+                />
+              </div>
+
+              <div>
+                <h2 style={{ color: "#e0e0e0", margin: "0 0 6px", fontSize: "22px", fontWeight: "600" }}>
+                  {username}
+                </h2>
+                <p style={{ color: "#555", fontSize: "13px", margin: 0 }}>
+                  {followers.length} seguidor{followers.length !== 1 ? "es" : ""} · {following.length} seguindo
+                </p>
+              </div>
             </div>
+
             {isLoggedIn && !isOwnProfile && (
               <button
                 onClick={handleFollow}
@@ -154,6 +236,7 @@ function UserProfile() {
                   links={links}
                   onNodeClick={(node) => navigate(`/post/${node.id}`)}
                   overlay
+                  isOwner={isOwnProfile}
                 />
               ))}
             </div>

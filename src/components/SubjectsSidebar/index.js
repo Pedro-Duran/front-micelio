@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { parsePage } from "../../utils/api";
 import { useNavigate, useLocation } from "react-router-dom";
 
 function SubjectsSidebar() {
@@ -13,7 +14,7 @@ function SubjectsSidebar() {
     fetch("/api/posts/verPosts")
       .then((r) => (r.ok ? r.json() : []))
       .catch(() => [])
-      .then((raw) => Array.isArray(raw) ? raw : (raw.content ?? []))
+      .then((raw) => parsePage(raw).content)
       .then((data) => {
         const counts = {};
         data.forEach((post) => {

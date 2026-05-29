@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { ForceGraph2D } from "react-force-graph";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
-import { authFetch } from "../../utils/api";
+import { authFetch, parsePage } from "../../utils/api";
 
 function lerpColor(t) {
   const r = Math.round(26 + t * (79 - 26));
@@ -35,7 +35,7 @@ function SubjectPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/posts/verPosts").then((r) => r.json()).then((d) => Array.isArray(d) ? d : (d.content ?? [])),
+      fetch("/api/posts/verPosts").then((r) => r.json()).then((d) => parsePage(d).content),
       authFetch("/api/events/summary").then((r) => r.json()).catch(() => []),
     ]).then(([postsData, summaryData]) => {
       const vcMap = {};
