@@ -257,6 +257,14 @@ function PostPage() {
     }
   };
 
+  const extractImageUrls = (content) => {
+    const regex = /!\[.*?\]\((https?:\/\/[^)]+)\)/g;
+    const urls = [];
+    let match;
+    while ((match = regex.exec(content)) !== null) urls.push(match[1]);
+    return [...new Set(urls)];
+  };
+
   const parseWikilinks = (content) => {
     const regex = /\[\[([^\[\]]+)\]\]/g;
     const titles = [];
@@ -268,12 +276,13 @@ function PostPage() {
   };
 
   const handleSave = async () => {
+    const newWikilinks = parseWikilinks(editedContent);
     const body = {
       id: postId,
       title: editedTitle,
       content: editedContent,
       links: [],
-      wikilinks: parseWikilinks(editedContent),
+      wikilinks: newWikilinks,
       subject: post.subject,
     };
 
@@ -285,6 +294,31 @@ function PostPage() {
       });
       if (!response.ok) throw new Error("Falha ao salvar");
       const updated = await response.json();
+
+      // Delete stub posts whose [[wikilink]] was removed from the content
+      const oldWikilinks = parseWikilinks(post.content);
+      const newWikilinkSet = new Set(newWikilinks.map((t) => t.toLowerCase()));
+      const removedTitles = oldWikilinks.filter((t) => !newWikilinkSet.has(t.toLowerCase()));
+      const removedStubIds = removedTitles
+        .map((title) => allNodes.find((n) => n.title.toLowerCase() === title.toLowerCase()))
+        .filter((n) => n && n.isStub)
+        .map((n) => n.id);
+      await Promise.all(
+        removedStubIds.map((id) =>
+          authFetch(`/api/posts/deletePost?id=${id}`, { method: "DELETE" })
+        )
+      );
+
+      // Delete inline images from S3 that were removed from the content
+      const oldImageUrls = extractImageUrls(post.content);
+      const newImageUrlSet = new Set(extractImageUrls(editedContent));
+      const removedImageUrls = oldImageUrls.filter((url) => !newImageUrlSet.has(url));
+      await Promise.all(
+        removedImageUrls.map((url) =>
+          authFetch(`/api/posts/images?url=${encodeURIComponent(url)}`, { method: "DELETE" })
+        )
+      );
+
       setPost((prev) => ({ ...prev, title: updated.title, content: updated.content }));
       setEditedTitle(updated.title);
       setEditedContent(updated.content);
