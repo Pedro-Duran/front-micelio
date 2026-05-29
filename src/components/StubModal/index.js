@@ -1,18 +1,22 @@
 import React, { useState } from "react";
+import { authFetch } from "../../utils/api";
 
 function StubModal({ postId, postTitle, onClose }) {
   const [step, setStep] = useState("ask");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleNotify = async () => {
     setLoading(true);
+    setError("");
     try {
-      await fetch(`/api/posts/${postId}/notify`, { method: "POST" });
+      const res = await authFetch(`/api/posts/${postId}/notify`, { method: "POST" });
+      if (!res.ok) throw new Error();
+      setStep("done");
     } catch {
-      // endpoint ainda não existe — ignora silenciosamente
+      setError("Não foi possível registrar. Verifique se está logado.");
     } finally {
       setLoading(false);
-      setStep("done");
     }
   };
 
@@ -34,6 +38,7 @@ function StubModal({ postId, postTitle, onClose }) {
               <span style={{ color: "#ccc" }}>"{postTitle}"</span> ainda não foi escrito.
               Deseja receber uma notificação quando for publicado?
             </p>
+            {error && <p style={{ color: "#f44336", fontSize: "12px", margin: 0 }}>{error}</p>}
             <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
               <button
                 onClick={handleNotify}

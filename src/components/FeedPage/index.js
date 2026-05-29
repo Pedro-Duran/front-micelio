@@ -16,6 +16,8 @@ function groupBySubject(posts) {
       content: p.content || "",
       isStub: p.isStub || false,
       viewCount: 0,
+      coverImageUrl: p.coverImageUrl || null,
+      authorUsername: p.authorUsername || p.author?.username || null,
     });
   });
   posts.forEach((p) => {
@@ -43,13 +45,36 @@ function FeedPage() {
         ? `/api/posts/feed?page=0&size=200`
         : `/api/posts/explore?page=0&size=200`;
 
-    authFetch(endpoint)
-      .then((r) => (r.ok ? r.json() : { content: [] }))
-      .catch(() => ({ content: [] }))
-      .then((raw) => {
-        setGroupedSubjects(groupBySubject(parsePage(raw).content));
-        setLoading(false);
+    Promise.all([
+      authFetch(endpoint)
+        .then((r) => (r.ok ? r.json() : { content: [] }))
+        .catch(() => ({ content: [] })),
+      fetch("/api/posts/verPosts?page=0&size=1000")
+        .then((r) => (r.ok ? r.json() : {}))
+        .catch(() => ({})),
+    ]).then(([feedRaw, verRaw]) => {
+      const feedPosts = parsePage(feedRaw).content;
+      const allPostsMap = new Map(parsePage(verRaw).content.map((p) => [p.id, p]));
+
+      const feedIds = new Set(feedPosts.map((p) => p.id));
+      const extraStubs = [];
+
+      feedPosts.forEach((p) => {
+        if (!Array.isArray(p.links)) return;
+        const subj = p.subject || "Sem categoria";
+        p.links.forEach((linkedId) => {
+          if (feedIds.has(linkedId)) return;
+          const linked = allPostsMap.get(linkedId);
+          if (linked?.isStub) {
+            feedIds.add(linkedId); // deduplicate
+            extraStubs.push({ ...linked, subject: linked.subject || subj });
+          }
+        });
       });
+
+      setGroupedSubjects(groupBySubject([...feedPosts, ...extraStubs]));
+      setLoading(false);
+    });
   }, [tab]);
 
   const isEmpty = !loading && Object.keys(groupedSubjects).length === 0;

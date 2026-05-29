@@ -18,7 +18,7 @@ function PostPage() {
   const { id } = useParams();
   const postId = parseInt(id);
   const navigate = useNavigate();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, username: currentUsername } = useAuth();
 
   const [allNodes, setAllNodes] = useState([]);
   const [allLinks, setAllLinks] = useState([]);
@@ -44,6 +44,13 @@ function PostPage() {
   const chunksRef = useRef([]);
   const imageInputRef = useRef(null);
   const editorApiRef = useRef(null);
+  const coverInputRef = useRef(null);
+
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [bannerPosY, setBannerPosY] = useState(50);
+  const [bannerDragging, setBannerDragging] = useState(false);
+  const bannerIsDraggingRef = useRef(false);
+  const bannerDragStartRef = useRef({ clientY: 0, pos: 50 });
 
   // VIEW analytics
   useEffect(() => {
@@ -66,10 +73,12 @@ function PostPage() {
           id: p.id,
           title: p.title || "Sem título",
           content: p.content || "",
-          author: p.author?.username || "Desconhecido",
+          author: p.authorUsername || p.author?.username || "Desconhecido",
+          authorUsername: p.authorUsername || p.author?.username || null,
           subject: p.subject || "Sem categoria",
           isStub: p.isStub || false,
           createdAt: p.createdAt || null,
+          coverImageUrl: p.coverImageUrl || null,
         }));
 
         const links = [];
@@ -257,6 +266,55 @@ function PostPage() {
     }
   };
 
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingCover(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await authFetchMultipart(`/api/posts/${postId}/cover`, formData);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setPost((prev) => ({ ...prev, coverImageUrl: data.coverImageUrl }));
+    } catch {
+      alert("Erro ao enviar capa.");
+    } finally {
+      setUploadingCover(false);
+      e.target.value = "";
+    }
+  };
+
+  useEffect(() => {
+    const stored = localStorage.getItem(`coverPos_post_${postId}`);
+    setBannerPosY(stored != null ? Number(stored) : 50);
+  }, [postId]);
+
+  const onBannerMouseDown = (e) => {
+    if (e.target.tagName.toLowerCase() === "button") return;
+    e.preventDefault();
+    bannerIsDraggingRef.current = true;
+    setBannerDragging(true);
+    bannerDragStartRef.current = { clientY: e.clientY, pos: bannerPosY };
+  };
+
+  const onBannerMouseMove = (e) => {
+    if (!bannerIsDraggingRef.current) return;
+    const delta = e.clientY - bannerDragStartRef.current.clientY;
+    const newPos = Math.max(0, Math.min(100, bannerDragStartRef.current.pos + delta * 0.3));
+    setBannerPosY(newPos);
+  };
+
+  const onBannerMouseUp = () => {
+    if (!bannerIsDraggingRef.current) return;
+    bannerIsDraggingRef.current = false;
+    setBannerDragging(false);
+    setBannerPosY((pos) => {
+      localStorage.setItem(`coverPos_post_${postId}`, String(pos));
+      return pos;
+    });
+  };
+
   const extractImageUrls = (content) => {
     const regex = /!\[.*?\]\((https?:\/\/[^)]+)\)/g;
     const urls = [];
@@ -277,6 +335,8 @@ function PostPage() {
 
   const handleSave = async () => {
     const newWikilinks = parseWikilinks(editedContent);
+    const transitioningFromStub = post.isStub && editedContent.trim().length > 0;
+
     const body = {
       id: postId,
       title: editedTitle,
@@ -284,6 +344,7 @@ function PostPage() {
       links: [],
       wikilinks: newWikilinks,
       subject: post.subject,
+      ...(transitioningFromStub ? { isStub: false } : {}),
     };
 
     try {
@@ -319,7 +380,7 @@ function PostPage() {
         )
       );
 
-      setPost((prev) => ({ ...prev, title: updated.title, content: updated.content }));
+      setPost((prev) => ({ ...prev, title: updated.title, content: updated.content, isStub: updated.isStub ?? prev.isStub }));
       setEditedTitle(updated.title);
       setEditedContent(updated.content);
       setEditMode(false);
@@ -425,6 +486,57 @@ function PostPage() {
             </>
           ) : (
             <>
+              {/* Cover image */}
+              {post.coverImageUrl && (
+                <div
+                  onMouseDown={onBannerMouseDown}
+                  onMouseMove={onBannerMouseMove}
+                  onMouseUp={onBannerMouseUp}
+                  onMouseLeave={onBannerMouseUp}
+                  style={{
+                    marginBottom: "28px", marginLeft: "-60px", marginRight: "-60px", marginTop: "-40px",
+                    position: "relative", userSelect: "none",
+                    cursor: bannerDragging ? "grabbing" : "grab",
+                  }}
+                >
+                  <img
+                    src={post.coverImageUrl}
+                    alt="capa"
+                    style={{ width: "100%", height: "160px", objectFit: "cover", display: "block", pointerEvents: "none", objectPosition: `center ${bannerPosY}%` }}
+                  />
+                  {isLoggedIn && (
+                    <button
+                      onClick={() => coverInputRef.current?.click()}
+                      title="Alterar capa"
+                      style={{ position: "absolute", bottom: "10px", right: "14px", background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "4px", color: "#ccc", cursor: "pointer", fontSize: "11px", padding: "4px 10px" }}
+                    >
+                      {uploadingCover ? "Enviando…" : "Alterar capa"}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Cover upload button (no cover yet) */}
+              {!post.coverImageUrl && isLoggedIn && (
+                <div style={{ marginBottom: "16px" }}>
+                  <button
+                    onClick={() => coverInputRef.current?.click()}
+                    disabled={uploadingCover}
+                    style={{ background: "none", border: "1px dashed #333", borderRadius: "4px", color: "#555", cursor: "pointer", fontSize: "11px", padding: "6px 14px" }}
+                  >
+                    {uploadingCover ? "Enviando…" : "+ Adicionar capa"}
+                  </button>
+                </div>
+              )}
+
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                style={{ display: "none" }}
+                onChange={handleCoverUpload}
+              />
+
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <h1 style={{ fontSize: "28px", marginBottom: "8px", marginTop: 0 }}>{editedTitle}</h1>
                 <div style={{ display: "flex", gap: "8px" }}>
@@ -526,17 +638,28 @@ function PostPage() {
                 width={228}
                 height={220}
                 onNodeClick={(node) => {
-                  if (node.isStub) { setStubModal({ id: node.id, title: node.title }); return; }
+                  if (node.isStub && node.authorUsername !== currentUsername) { setStubModal({ id: node.id, title: node.title }); return; }
                   registerEvent({ postId: node.id, eventType: "CLICK_NODE" });
                   navigate(`/post/${node.id}`);
                 }}
-                nodeCanvasObject={(node, ctx) => {
+                nodeCanvasObject={(node, ctx, globalScale) => {
                   const isCurrent = node.id === postId;
                   const radius = isCurrent ? 7 : node.isStub ? 3 : 5;
                   ctx.beginPath();
                   ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
                   ctx.fillStyle = isCurrent ? "#4fc3f7" : node.isStub ? "rgba(100, 150, 200, 0.3)" : "#1a6b8a";
                   ctx.fill();
+
+                  const fontSize = 10 / globalScale;
+                  ctx.font = `${fontSize}px Sans-Serif`;
+                  ctx.textAlign = "center";
+                  ctx.textBaseline = "top";
+                  ctx.fillStyle = isCurrent
+                    ? "rgba(79, 195, 247, 0.9)"
+                    : node.isStub
+                    ? "rgba(100, 150, 200, 0.55)"
+                    : "rgba(200, 200, 200, 0.8)";
+                  ctx.fillText(node.title, node.x, node.y + radius + 2 / globalScale);
                 }}
               />
 
@@ -605,12 +728,19 @@ function PostPage() {
                   backgroundColor="#1e1e1e"
                   width={228}
                   height={200}
-                  nodeCanvasObject={(node, ctx) => {
+                  nodeCanvasObject={(node, ctx, globalScale) => {
                     const radius = node.isStub ? 3 : 5;
                     ctx.beginPath();
                     ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
                     ctx.fillStyle = node.fresh ? "#4fc3f7" : "#1a6b8a";
                     ctx.fill();
+
+                    const fontSize = 10 / globalScale;
+                    ctx.font = `${fontSize}px Sans-Serif`;
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "top";
+                    ctx.fillStyle = node.fresh ? "rgba(79, 195, 247, 0.9)" : "rgba(200, 200, 200, 0.6)";
+                    ctx.fillText(node.title, node.x, node.y + radius + 2 / globalScale);
                   }}
                 />
                 {tlCurrentNode && (

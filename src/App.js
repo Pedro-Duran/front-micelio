@@ -27,6 +27,8 @@ function App() {
         subject: post.subject || "Sem categoria",
         isStub: post.isStub || false,
         viewCount: vcMap[post.id] || 0,
+        coverImageUrl: post.coverImageUrl || null,
+        authorUsername: post.authorUsername || post.author?.username || null,
       }));
 
       const links = [];

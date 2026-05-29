@@ -96,6 +96,8 @@ function UserProfile() {
           content: p.content || "",
           isStub: p.isStub || false,
           viewCount: 0,
+          coverImageUrl: p.coverImageUrl || null,
+          authorUsername: p.authorUsername || p.author?.username || null,
         });
       });
       posts.forEach((p) => {

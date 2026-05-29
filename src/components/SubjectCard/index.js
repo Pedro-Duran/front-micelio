@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { ForceGraph2D } from "react-force-graph";
 import { Link, useNavigate } from "react-router-dom";
 import StubModal from "../StubModal";
+import { useAuth } from "../../context/AuthContext";
 
 function lerpColor(t) {
   const r = Math.round(26 + t * (79 - 26));
@@ -23,6 +24,7 @@ function stripMarkdown(text) {
 
 function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOwner = false }) {
   const navigate = useNavigate();
+  const { username: currentUsername } = useAuth();
   const [showList, setShowList] = useState(false);
   const [stubModal, setStubModal] = useState(null); // { id, title }
 
@@ -37,8 +39,51 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
   const previewRaw = topPost ? stripMarkdown(topPost.content) : "";
   const previewText = previewRaw.length > 120 ? previewRaw.slice(0, 120) + "…" : previewRaw;
 
+  const coverImage = useMemo(() => {
+    const urls = nodes.map((n) => n.coverImageUrl).filter(Boolean);
+    return urls.length > 0 ? urls[Math.floor(Math.random() * urls.length)] : null;
+  }, [nodes]);
+
+  const [coverPosY, setCoverPosY] = useState(50);
+  const [dragging, setDragging] = useState(false);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef({ clientY: 0, pos: 50 });
+
+  useEffect(() => {
+    if (!coverImage) { setCoverPosY(50); return; }
+    const stored = localStorage.getItem(`coverPos_${coverImage}`);
+    setCoverPosY(stored != null ? Number(stored) : 50);
+  }, [coverImage]);
+
+  const onCoverMouseDown = (e) => {
+    const tag = e.target.tagName.toLowerCase();
+    if (tag === "h3" || tag === "span") return;
+    e.preventDefault();
+    isDraggingRef.current = true;
+    setDragging(true);
+    dragStartRef.current = { clientY: e.clientY, pos: coverPosY };
+  };
+
+  const onCoverMouseMove = (e) => {
+    if (!isDraggingRef.current) return;
+    const delta = e.clientY - dragStartRef.current.clientY;
+    const newPos = Math.max(0, Math.min(100, dragStartRef.current.pos + delta * 0.5));
+    setCoverPosY(newPos);
+  };
+
+  const onCoverMouseUp = () => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+    setDragging(false);
+    setCoverPosY((pos) => {
+      if (coverImage) localStorage.setItem(`coverPos_${coverImage}`, String(pos));
+      return pos;
+    });
+  };
+
   const handleNodeClick = (node) => {
-    if (node.isStub && !isOwner) {
+    const ownsNode = isOwner || (currentUsername && node.authorUsername === currentUsername);
+    if (node.isStub && !ownsNode) {
       setStubModal({ id: node.id, title: node.title });
       return;
     }
@@ -87,32 +132,55 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
           flexDirection: "column",
         }}
       >
-        {/* Header */}
+        {/* Header — fixed height so all cards are uniform regardless of title length or cover */}
         <div
+          onMouseDown={coverImage ? onCoverMouseDown : undefined}
+          onMouseMove={coverImage ? onCoverMouseMove : undefined}
+          onMouseUp={coverImage ? onCoverMouseUp : undefined}
+          onMouseLeave={coverImage ? onCoverMouseUp : undefined}
           style={{
-            padding: "12px 14px 8px",
+            height: "72px",
             borderBottom: "1px solid #2e2e2e",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+            position: "relative",
+            overflow: "hidden",
+            userSelect: "none",
+            flexShrink: 0,
+            ...(coverImage ? {
+              backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url(${coverImage})`,
+              backgroundSize: "cover",
+              backgroundPosition: `center ${coverPosY}%`,
+              cursor: dragging ? "grabbing" : "grab",
+            } : {
+              background: "#1a1a1a",
+            }),
           }}
         >
-          <h3
-            onClick={() => navigate(`/subject/${encodeURIComponent(subject)}`)}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "#e0e0e0"; }}
-            style={{ margin: 0, fontSize: "13px", fontWeight: "bold", color: "#e0e0e0", cursor: "pointer" }}
-          >
-            {subject}
-          </h3>
-          <span
-            onClick={(e) => { e.stopPropagation(); setShowList((v) => !v); }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; }}
-            style={{ color: "#555", fontSize: "11px", fontWeight: "normal", cursor: "pointer", userSelect: "none" }}
-          >
-            {nodes.length} post{nodes.length !== 1 ? "s" : ""} {showList ? " □ " : " ○ "}
-          </span>
+          <div style={{
+            position: "absolute",
+            bottom: 0, left: 0, right: 0,
+            padding: "8px 14px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            gap: "8px",
+          }}>
+            <h3
+              onClick={() => navigate(`/subject/${encodeURIComponent(subject)}`)}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#e0e0e0"; }}
+              style={{ margin: 0, fontSize: "13px", fontWeight: "bold", color: "#e0e0e0", cursor: "pointer", lineHeight: "1.3", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}
+            >
+              {subject}
+            </h3>
+            <span
+              onClick={(e) => { e.stopPropagation(); setShowList((v) => !v); }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#888"; }}
+              style={{ color: "#888", fontSize: "11px", fontWeight: "normal", cursor: "pointer", userSelect: "none", flexShrink: 0, whiteSpace: "nowrap" }}
+            >
+              {nodes.length} post{nodes.length !== 1 ? "s" : ""} {showList ? " □ " : " ○ "}
+            </span>
+          </div>
         </div>
 
         {/* Graph */}
