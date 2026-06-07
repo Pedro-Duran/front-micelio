@@ -2,89 +2,53 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
-import SubjectCard from "../SubjectCard";
 import { authFetch, parsePage } from "../../utils/api";
 
-function groupBySubject(posts) {
-  const groups = {};
-  posts.forEach((p) => {
-    const subj = p.subject || "Sem categoria";
-    if (!groups[subj]) groups[subj] = { nodes: [], links: [] };
-    groups[subj].nodes.push({
-      id: p.id,
-      title: p.title || "Sem título",
-      content: p.content || "",
-      isStub: p.isStub || false,
-      viewCount: 0,
-      coverImageUrl: p.coverImageUrl || null,
-      authorUsername: p.authorUsername || p.author?.username || null,
-    });
-  });
-  posts.forEach((p) => {
-    if (!Array.isArray(p.links)) return;
-    const subj = p.subject || "Sem categoria";
-    const ids = new Set(groups[subj].nodes.map((n) => n.id));
-    p.links.forEach((linkedId) => {
-      if (ids.has(linkedId)) groups[subj].links.push({ source: p.id, target: linkedId });
-    });
-  });
-  return groups;
-}
+const PAGE_SIZE = 20;
 
 function FeedPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState("explore");
-  const [groupedSubjects, setGroupedSubjects] = useState({});
+  const [posts, setPosts] = useState([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
 
+  const switchTab = (newTab) => {
+    if (newTab === tab) return;
+    setPosts([]);
+    setPage(0);
+    setHasMore(true);
+    setTab(newTab);
+  };
+
   useEffect(() => {
-    setGroupedSubjects({});
     setLoading(true);
     const endpoint =
       tab === "feed"
-        ? `/api/posts/feed?page=0&size=200`
-        : `/api/posts/explore?page=0&size=200`;
+        ? `/api/posts/feed?page=${page}&size=${PAGE_SIZE}`
+        : `/api/posts/verPosts?page=${page}&size=${PAGE_SIZE}`;
 
-    Promise.all([
-      authFetch(endpoint)
-        .then((r) => (r.ok ? r.json() : { content: [] }))
-        .catch(() => ({ content: [] })),
-      fetch("/api/posts/verPosts?page=0&size=1000")
-        .then((r) => (r.ok ? r.json() : {}))
-        .catch(() => ({})),
-    ]).then(([feedRaw, verRaw]) => {
-      const feedPosts = parsePage(feedRaw).content;
-      const allPostsMap = new Map(parsePage(verRaw).content.map((p) => [p.id, p]));
-
-      const feedIds = new Set(feedPosts.map((p) => p.id));
-      const extraStubs = [];
-
-      feedPosts.forEach((p) => {
-        if (!Array.isArray(p.links)) return;
-        const subj = p.subject || "Sem categoria";
-        p.links.forEach((linkedId) => {
-          if (feedIds.has(linkedId)) return;
-          const linked = allPostsMap.get(linkedId);
-          if (linked?.isStub) {
-            feedIds.add(linkedId); // deduplicate
-            extraStubs.push({ ...linked, subject: linked.subject || subj });
-          }
-        });
+    const req = tab === "feed" ? authFetch(endpoint) : fetch(endpoint);
+    req
+      .then((r) => (r.ok ? r.json() : {}))
+      .catch(() => ({}))
+      .then((raw) => {
+        const { content, isLast } = parsePage(raw);
+        setPosts((prev) => (page === 0 ? content : [...prev, ...content]));
+        setHasMore(!isLast);
+        setLoading(false);
       });
+  }, [tab, page]);
 
-      setGroupedSubjects(groupBySubject([...feedPosts, ...extraStubs]));
-      setLoading(false);
-    });
-  }, [tab]);
-
-  const isEmpty = !loading && Object.keys(groupedSubjects).length === 0;
+  const isEmpty = !loading && posts.length === 0;
 
   return (
     <>
       <Cabecalho />
       <div style={{ display: "flex", background: "#1e1e1e", minHeight: "calc(100vh - 60px)" }}>
         <SubjectsSidebar />
-        <div style={{ flex: 1, padding: "32px 32px", overflowY: "auto" }}>
+        <div style={{ flex: 1, padding: "32px 40px", overflowY: "auto" }}>
 
           {/* Tabs */}
           <div style={{ display: "flex", marginBottom: "28px", borderBottom: "1px solid #2a2a2a" }}>
@@ -94,7 +58,7 @@ function FeedPage() {
             ].map(({ key, label }) => (
               <button
                 key={key}
-                onClick={() => setTab(key)}
+                onClick={() => switchTab(key)}
                 style={{
                   background: "none",
                   border: "none",
@@ -112,19 +76,60 @@ function FeedPage() {
             ))}
           </div>
 
-          {/* Loading */}
+          {/* Post list */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px", maxWidth: "680px" }}>
+            {posts.map((post) => (
+              <button
+                key={post.id}
+                onClick={() => navigate(`/post/${post.id}`)}
+                style={{
+                  display: "flex", alignItems: "center", gap: "12px",
+                  padding: "12px 14px",
+                  background: "#242424", border: "1px solid #2e2e2e", borderRadius: "6px",
+                  cursor: "pointer", textAlign: "left", width: "100%",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#3a3a3a"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#2e2e2e"; }}
+              >
+                {post.coverImageUrl && (
+                  <img
+                    src={post.coverImageUrl}
+                    alt=""
+                    style={{ width: "52px", height: "40px", objectFit: "cover", borderRadius: "4px", flexShrink: 0 }}
+                  />
+                )}
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "3px", overflow: "hidden" }}>
+                  <span style={{
+                    color: post.isStub ? "#555" : "#e0e0e0",
+                    fontSize: "14px", fontWeight: "500",
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    fontStyle: post.isStub ? "italic" : "normal",
+                  }}>
+                    {post.title}
+                  </span>
+                  <span style={{ color: "#444", fontSize: "12px" }}>
+                    {post.subject && (
+                      <span style={{ color: "#4fc3f7", marginRight: "6px" }}>{post.subject}</span>
+                    )}
+                    {post.authorUsername || post.author?.username}
+                    {post.isStub && <span style={{ marginLeft: "6px" }}>· stub</span>}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+
           {loading && (
-            <p style={{ color: "#444", fontSize: "13px" }}>Carregando...</p>
+            <p style={{ color: "#444", fontSize: "13px", marginTop: "20px" }}>Carregando...</p>
           )}
 
-          {/* Empty feed CTA */}
           {isEmpty && tab === "feed" && (
             <div style={{ textAlign: "center", padding: "60px 20px" }}>
               <p style={{ color: "#555", fontSize: "15px", marginBottom: "16px" }}>
                 Você ainda não segue ninguém.
               </p>
               <button
-                onClick={() => setTab("explore")}
+                onClick={() => switchTab("explore")}
                 style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "9px 22px", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}
               >
                 Explorar posts
@@ -136,19 +141,16 @@ function FeedPage() {
             <p style={{ color: "#444", fontSize: "14px" }}>Nenhum post encontrado.</p>
           )}
 
-          {/* Subject cards */}
-          {!loading && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", alignContent: "flex-start" }}>
-              {Object.entries(groupedSubjects).map(([subject, { nodes, links }]) => (
-                <SubjectCard
-                  key={subject}
-                  subject={subject}
-                  nodes={nodes}
-                  links={links}
-                  onNodeClick={(node) => navigate(`/post/${node.id}`)}
-                  overlay
-                />
-              ))}
+          {hasMore && !loading && posts.length > 0 && (
+            <div style={{ marginTop: "16px", maxWidth: "680px" }}>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                style={{ width: "100%", padding: "10px", background: "none", border: "1px solid #2e2e2e", borderRadius: "6px", color: "#555", cursor: "pointer", fontSize: "13px" }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#999"; e.currentTarget.style.borderColor = "#3a3a3a"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; e.currentTarget.style.borderColor = "#2e2e2e"; }}
+              >
+                Carregar mais
+              </button>
             </div>
           )}
 

@@ -23,6 +23,7 @@ function UserProfile() {
   const [following, setFollowing] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [socialModal, setSocialModal] = useState(null); // "followers" | "following" | null
 
   const [groupedSubjects, setGroupedSubjects] = useState({});
   const [loading, setLoading] = useState(true);
@@ -58,8 +59,8 @@ function UserProfile() {
         : Promise.resolve(false);
 
     Promise.all([followersP, followingP, isFollowingP]).then(([f, fg, isF]) => {
-      setFollowers(f);
-      setFollowing(fg);
+      setFollowers(parsePage(f).content);
+      setFollowing(parsePage(fg).content);
       setIsFollowing(isF);
     });
   }, [username, isLoggedIn, isOwnProfile]);
@@ -152,8 +153,46 @@ function UserProfile() {
     }
   };
 
+  const socialList = socialModal === "followers" ? followers : following;
+
   return (
     <>
+      {socialModal && (
+        <div
+          onClick={() => setSocialModal(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "#242424", border: "1px solid #333", borderRadius: "8px", width: "320px", maxHeight: "480px", display: "flex", flexDirection: "column" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid #2a2a2a" }}>
+              <span style={{ color: "#e0e0e0", fontSize: "14px", fontWeight: "600" }}>
+                {socialModal === "followers" ? "Seguidores" : "Seguindo"}
+              </span>
+              <button onClick={() => setSocialModal(null)} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "16px", lineHeight: 1 }}>✕</button>
+            </div>
+            <div style={{ overflowY: "auto", padding: "6px 0" }}>
+              {socialList.length === 0 ? (
+                <p style={{ color: "#555", fontSize: "13px", padding: "16px 20px", margin: 0 }}>
+                  {socialModal === "followers" ? "Nenhum seguidor ainda." : "Não está seguindo ninguém."}
+                </p>
+              ) : socialList.map((user) => (
+                <button
+                  key={user.username}
+                  onClick={() => { navigate(`/user/${user.username}`); setSocialModal(null); }}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: "12px", padding: "10px 20px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "#2e2e2e"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                >
+                  <Avatar avatarUrl={user.avatarUrl} username={user.username} size={32} />
+                  <span style={{ color: "#e0e0e0", fontSize: "14px" }}>{user.username}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <Cabecalho />
       <div style={{ display: "flex", background: "#1e1e1e", minHeight: "calc(100vh - 60px)" }}>
         <SubjectsSidebar />
@@ -194,8 +233,24 @@ function UserProfile() {
                 <h2 style={{ color: "#e0e0e0", margin: "0 0 6px", fontSize: "22px", fontWeight: "600" }}>
                   {username}
                 </h2>
-                <p style={{ color: "#555", fontSize: "13px", margin: 0 }}>
-                  {followers.length} seguidor{followers.length !== 1 ? "es" : ""} · {following.length} seguindo
+                <p style={{ color: "#555", fontSize: "13px", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                  <button
+                    onClick={() => setSocialModal("followers")}
+                    style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: 0, fontSize: "13px" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = "#ccc"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; }}
+                  >
+                    {followers.length} seguidor{followers.length !== 1 ? "es" : ""}
+                  </button>
+                  <span>·</span>
+                  <button
+                    onClick={() => setSocialModal("following")}
+                    style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: 0, fontSize: "13px" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = "#ccc"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; }}
+                  >
+                    {following.length} seguindo
+                  </button>
                 </p>
               </div>
             </div>

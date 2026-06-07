@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { ForceGraph2D } from "react-force-graph";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import MDEditor, { commands } from "@uiw/react-md-editor";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
@@ -141,6 +142,29 @@ function PostPage() {
 
     return { nodes: localNodes, links: localLinks };
   }, [post, postId, allNodes, allLinks]);
+
+  const AUTHOR_PALETTE = ["#4fc3f7", "#81c784", "#ffb74d", "#f06292", "#ba68c8", "#4db6ac", "#fff176", "#ff8a65"];
+
+  const authorColorMap = useMemo(() => {
+    const bySubject = {};
+    allNodes.forEach((n) => {
+      if (!n.isStub && n.subject && n.authorUsername) {
+        if (!bySubject[n.subject]) bySubject[n.subject] = new Set();
+        bySubject[n.subject].add(n.authorUsername);
+      }
+    });
+    const map = {};
+    Object.entries(bySubject).forEach(([subject, authSet]) => {
+      if (authSet.size >= 2) {
+        authSet.forEach((name) => {
+          let h = 0;
+          for (let i = 0; i < name.length; i++) { h = ((h << 5) - h) + name.charCodeAt(i); h |= 0; }
+          map[`${name}::${subject}`] = AUTHOR_PALETTE[Math.abs(h) % AUTHOR_PALETTE.length];
+        });
+      }
+    });
+    return map;
+  }, [allNodes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Nós da timeline ordenados por data
   const timelineNodes = useMemo(
@@ -539,7 +563,17 @@ function PostPage() {
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <h1 style={{ fontSize: "28px", marginBottom: "8px", marginTop: 0 }}>{editedTitle}</h1>
-                <div style={{ display: "flex", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {isLoggedIn && !post.isStub && (
+                    <button
+                      onClick={() => navigate("/novoPost", { state: { refTitle: post.title, refPostId: postId } })}
+                      style={{ background: "none", border: "1px solid #333", borderRadius: "4px", color: "#666", cursor: "pointer", fontSize: "11px", padding: "3px 8px", whiteSpace: "nowrap" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; e.currentTarget.style.borderColor = "#4fc3f7"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }}
+                    >
+                      ref post
+                    </button>
+                  )}
                   <button onClick={openTimeline} title="Ver pensamento sendo construído" style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>🎬</button>
                   {isLoggedIn && (
                     <>
@@ -563,6 +597,7 @@ function PostPage() {
               <div data-color-mode="dark" style={{ lineHeight: "1.8", fontSize: "15px" }}>
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
                   components={{
                     a: ({ href, children }) =>
                       href && href.startsWith("/post/") ? (
@@ -645,10 +680,19 @@ function PostPage() {
                 nodeCanvasObject={(node, ctx, globalScale) => {
                   const isCurrent = node.id === postId;
                   const radius = isCurrent ? 7 : node.isStub ? 3 : 5;
+                  const colorKey = `${node.authorUsername}::${node.subject}`;
+                  const fillColor = node.isStub
+                    ? "rgba(100, 150, 200, 0.3)"
+                    : (authorColorMap[colorKey] || (isCurrent ? "#4fc3f7" : "#1a6b8a"));
                   ctx.beginPath();
                   ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-                  ctx.fillStyle = isCurrent ? "#4fc3f7" : node.isStub ? "rgba(100, 150, 200, 0.3)" : "#1a6b8a";
+                  ctx.fillStyle = fillColor;
                   ctx.fill();
+                  if (isCurrent) {
+                    ctx.strokeStyle = "rgba(255,255,255,0.45)";
+                    ctx.lineWidth = 1.5 / globalScale;
+                    ctx.stroke();
+                  }
 
                   const fontSize = 10 / globalScale;
                   ctx.font = `${fontSize}px Sans-Serif`;

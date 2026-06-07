@@ -30,6 +30,20 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
 
   const maxVc = Math.max(...nodes.map((n) => n.viewCount), 1);
 
+  const AUTHOR_PALETTE = ["#4fc3f7", "#81c784", "#ffb74d", "#f06292", "#ba68c8", "#4db6ac", "#fff176", "#ff8a65"];
+
+  const authorColorMap = useMemo(() => {
+    const uniqueAuthors = [...new Set(nodes.filter((n) => !n.isStub).map((n) => n.authorUsername).filter(Boolean))];
+    if (uniqueAuthors.length < 2) return {};
+    const map = {};
+    uniqueAuthors.forEach((name) => {
+      let h = 0;
+      for (let i = 0; i < name.length; i++) { h = ((h << 5) - h) + name.charCodeAt(i); h |= 0; }
+      map[name] = AUTHOR_PALETTE[Math.abs(h) % AUTHOR_PALETTE.length];
+    });
+    return map;
+  }, [nodes]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const sortedNonStub = [...nodes]
     .filter((n) => !n.isStub)
     .sort((a, b) => b.viewCount - a.viewCount);
@@ -91,11 +105,12 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
   };
 
   const paintNode = (node, ctx, globalScale) => {
-    const t = node.isStub ? 0 : node.viewCount / maxVc;
     const radius = node.isStub ? 3 : 5;
     ctx.beginPath();
     ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
-    ctx.fillStyle = node.isStub ? "rgba(100, 150, 200, 0.35)" : lerpColor(t);
+    ctx.fillStyle = node.isStub
+      ? "rgba(100, 150, 200, 0.35)"
+      : (authorColorMap[node.authorUsername] || lerpColor(node.viewCount / maxVc));
     ctx.fill();
 
     const opacity = Math.min(1, Math.max(0, (globalScale - 0.5) / 0.8));

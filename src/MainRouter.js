@@ -13,6 +13,7 @@ import UserProfile from "./components/UserProfile";
 import UsersPage from "./components/UsersPage";
 import ResetPasswordPage from "./components/ResetPasswordPage";
 import OAuth2CallbackPage from "./components/OAuth2CallbackPage";
+import SearchPage from "./components/SearchPage";
 
 function ProtectedRoute({ children }) {
   const { isLoggedIn } = useAuth();
@@ -34,6 +35,7 @@ function MainRouter() {
           <Route path="/users" element={<UsersPage />} />
           <Route path="/user/:username" element={<UserProfile />} />
           <Route path="/novoPost" element={<ProtectedRoute><NovoPost /></ProtectedRoute>} />
+          <Route path="/search" element={<SearchPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
         </Routes>

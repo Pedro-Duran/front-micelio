@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import MDEditor from "@uiw/react-md-editor";
 import Cabecalho from "../Cabecalho";
 import { authFetch } from "../../utils/api";
@@ -15,12 +15,18 @@ const parseWikilinks = (content) => {
   return [...new Set(titles)];
 };
 
+const makeRefTemplate = (refTitle) =>
+  `Esse post faz referência a [[${refTitle}]].\n\n> Mova \`[[${refTitle}]]\` para onde quiser no texto. Delete este bloco de instrução quando começar a escrever.`;
+
 function NovoPost() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { username } = useAuth();
 
+  const refTitle = location.state?.refTitle || null;
+
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState(() => refTitle ? makeRefTemplate(refTitle) : "");
   const [subject, setSubject] = useState("");
   const [isCreatingSubject, setIsCreatingSubject] = useState(false);
   const [subjects, setSubjects] = useState([]);
@@ -119,10 +125,21 @@ function NovoPost() {
 
           <div>
             <label style={labelStyle}>Conteúdo — use [[título]] para linkar outros posts</label>
+            {refTitle && (
+              <p style={{ margin: "0 0 8px", padding: "8px 12px", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: "4px", color: "#666", fontSize: "12px" }}>
+                Referência pré-inserida: <span style={{ color: "#4fc3f7", fontFamily: "monospace" }}>[[{refTitle}]]</span> — mova-a para onde quiser no texto.
+              </p>
+            )}
             <div data-color-mode="dark">
               <MDEditor
                 value={content}
-                onChange={(v) => setContent(v || "")}
+                onChange={(v) => {
+                  if ((!v || v === "") && refTitle) {
+                    setContent(makeRefTemplate(refTitle));
+                  } else {
+                    setContent(v || "");
+                  }
+                }}
                 height={400}
               />
             </div>
