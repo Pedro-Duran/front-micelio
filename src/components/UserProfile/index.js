@@ -18,6 +18,7 @@ function UserProfile() {
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [avatarHover, setAvatarHover] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarLightbox, setAvatarLightbox] = useState(false);
 
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
@@ -87,27 +88,37 @@ function UserProfile() {
 
       const posts = [...searchPosts, ...missingStubs];
 
+      const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
+        ? p.subjects : (p.subject ? [p.subject] : ["Sem categoria"]);
+
       const groups = {};
       posts.forEach((p) => {
-        const subj = p.subject || "Sem categoria";
-        if (!groups[subj]) groups[subj] = { nodes: [], links: [] };
-        groups[subj].nodes.push({
+        const subjs = getSubjs(p);
+        const node = {
           id: p.id,
           title: p.title || "Sem título",
           content: p.content || "",
+          subjects: subjs,
+          subject: subjs[0] || "Sem categoria",
           isStub: p.isStub || false,
           viewCount: 0,
           coverImageUrl: p.coverImageUrl || null,
           authorUsername: p.authorUsername || p.author?.username || null,
+        };
+        subjs.forEach((subj) => {
+          if (!groups[subj]) groups[subj] = { nodes: [], links: [] };
+          if (!groups[subj].nodes.find((n) => n.id === p.id)) groups[subj].nodes.push(node);
         });
       });
       posts.forEach((p) => {
         if (!Array.isArray(p.links)) return;
-        const subj = p.subject || "Sem categoria";
-        const subjectIds = new Set(groups[subj].nodes.map((n) => n.id));
-        p.links.forEach((linkedId) => {
-          if (subjectIds.has(linkedId))
-            groups[subj].links.push({ source: p.id, target: linkedId });
+        getSubjs(p).forEach((subj) => {
+          if (!groups[subj]) return;
+          const subjectIds = new Set(groups[subj].nodes.map((n) => n.id));
+          p.links.forEach((linkedId) => {
+            if (subjectIds.has(linkedId))
+              groups[subj].links.push({ source: p.id, target: linkedId });
+          });
         });
       });
       setGroupedSubjects(groups);
@@ -157,6 +168,19 @@ function UserProfile() {
 
   return (
     <>
+      {avatarLightbox && (
+        <div onClick={() => setAvatarLightbox(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 600, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", cursor: "zoom-out" }}>
+          <Avatar avatarUrl={avatarUrl} username={username} size={220} />
+          {isOwnProfile && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setAvatarLightbox(false); fileInputRef.current?.click(); }}
+              style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "4px", color: "#ccc", cursor: "pointer", fontSize: "13px", padding: "7px 18px" }}
+            >
+              {uploadingAvatar ? "Enviando…" : "Alterar foto"}
+            </button>
+          )}
+        </div>
+      )}
       {socialModal && (
         <div
           onClick={() => setSocialModal(null)}
@@ -204,20 +228,15 @@ function UserProfile() {
 
               {/* Avatar */}
               <div
-                style={{ position: "relative", cursor: isOwnProfile ? "pointer" : "default" }}
-                onMouseEnter={() => isOwnProfile && setAvatarHover(true)}
+                style={{ position: "relative", cursor: "pointer" }}
+                onMouseEnter={() => setAvatarHover(true)}
                 onMouseLeave={() => setAvatarHover(false)}
-                onClick={() => isOwnProfile && fileInputRef.current?.click()}
+                onClick={() => setAvatarLightbox(true)}
               >
                 <Avatar avatarUrl={avatarUrl} username={username} size={72} />
-                {isOwnProfile && (avatarHover || uploadingAvatar) && (
-                  <div style={{
-                    position: "absolute", inset: 0, borderRadius: "50%",
-                    background: "rgba(0,0,0,0.55)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "18px",
-                  }}>
-                    {uploadingAvatar ? "⏳" : "📷"}
+                {avatarHover && (
+                  <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>
+                    🔍
                   </div>
                 )}
                 <input

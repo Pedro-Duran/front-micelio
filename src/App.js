@@ -20,16 +20,23 @@ function App() {
       const vcMap = {};
       summaryData.forEach((s) => { vcMap[s.postId] = s.viewCount || 0; });
 
-      const nodes = postsData.map((post) => ({
-        id: post.id,
-        title: post.title || "Título não disponível",
-        content: post.content || "",
-        subject: post.subject || "Sem categoria",
-        isStub: post.isStub || false,
-        viewCount: vcMap[post.id] || 0,
-        coverImageUrl: post.coverImageUrl || null,
-        authorUsername: post.authorUsername || post.author?.username || null,
-      }));
+      const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
+        ? p.subjects : (p.subject ? [p.subject] : ["Sem categoria"]);
+
+      const nodes = postsData.map((post) => {
+        const subjs = getSubjs(post);
+        return {
+          id: post.id,
+          title: post.title || "Título não disponível",
+          content: post.content || "",
+          subjects: subjs,
+          subject: subjs[0] || "Sem categoria",
+          isStub: post.isStub || false,
+          viewCount: vcMap[post.id] || 0,
+          coverImageUrl: post.coverImageUrl || null,
+          authorUsername: post.authorUsername || post.author?.username || null,
+        };
+      });
 
       const links = [];
       postsData.forEach((post) => {
@@ -38,12 +45,13 @@ function App() {
         }
       });
 
-      const grouped = nodes.reduce((acc, node) => {
-        const s = node.subject;
-        if (!acc[s]) acc[s] = { nodes: [], links: [] };
-        acc[s].nodes.push(node);
-        return acc;
-      }, {});
+      const grouped = {};
+      nodes.forEach((node) => {
+        node.subjects.forEach((s) => {
+          if (!grouped[s]) grouped[s] = { nodes: [], links: [] };
+          if (!grouped[s].nodes.find((n) => n.id === node.id)) grouped[s].nodes.push(node);
+        });
+      });
 
       Object.values(grouped).forEach((group) => {
         group.links = links.filter(

@@ -31,6 +31,10 @@ function PostPage() {
 
   const [stubModal, setStubModal] = useState(null); // { id, title }
   const [lightboxSrc, setLightboxSrc] = useState(null);
+  const [editedSubjects, setEditedSubjects] = useState([]);
+  const [allSubjects, setAllSubjects] = useState([]);
+  const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [newSubjectInput, setNewSubjectInput] = useState("");
 
   // Sidebar: "graph" | "timeline"
   const [sidebarMode, setSidebarMode] = useState("graph");
@@ -53,6 +57,13 @@ function PostPage() {
   const bannerIsDraggingRef = useRef(false);
   const bannerDragStartRef = useRef({ clientY: 0, pos: 50 });
 
+  useEffect(() => {
+    fetch("/api/posts/subjects")
+      .then((r) => (r.ok ? r.json() : []))
+      .catch(() => [])
+      .then(setAllSubjects);
+  }, []);
+
   // VIEW analytics
   useEffect(() => {
     const startTime = Date.now();
@@ -70,13 +81,17 @@ function PostPage() {
       })
       .then((raw) => parsePage(raw).content)
       .then((data) => {
+        const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
+          ? p.subjects : (p.subject ? [p.subject] : []);
+
         const nodes = data.map((p) => ({
           id: p.id,
           title: p.title || "Sem título",
           content: p.content || "",
           author: p.authorUsername || p.author?.username || "Desconhecido",
           authorUsername: p.authorUsername || p.author?.username || null,
-          subject: p.subject || "Sem categoria",
+          subjects: getSubjs(p),
+          subject: getSubjs(p)[0] || "Sem categoria",
           isStub: p.isStub || false,
           createdAt: p.createdAt || null,
           coverImageUrl: p.coverImageUrl || null,
@@ -99,6 +114,7 @@ function PostPage() {
           setPost(current);
           setEditedTitle(current.title);
           setEditedContent(current.content);
+          setEditedSubjects(current.subjects?.length > 0 ? current.subjects : (current.subject ? [current.subject] : []));
         }
       })
       .catch((err) => console.error(err));
@@ -367,7 +383,7 @@ function PostPage() {
       content: editedContent,
       links: [],
       wikilinks: newWikilinks,
-      subject: post.subject,
+      subjects: editedSubjects,
       ...(transitioningFromStub ? { isStub: false } : {}),
     };
 
@@ -471,6 +487,36 @@ function PostPage() {
           />
         </div>
       )}
+      {showSubjectModal && (
+        <div onClick={() => setShowSubjectModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.72)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#242424", border: "1px solid #333", borderRadius: "8px", width: "380px", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+            <h3 style={{ margin: 0, color: "#e0e0e0", fontSize: "15px" }}>Categorias do post</h3>
+            {allSubjects.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {allSubjects.map((s) => {
+                  const sel = editedSubjects.includes(s);
+                  return (
+                    <button key={s} onClick={() => setEditedSubjects((prev) => sel ? prev.filter((x) => x !== s) : [...prev, s])}
+                      style={{ background: sel ? "#1d3a4a" : "none", border: `1px solid ${sel ? "#4fc3f7" : "#444"}`, borderRadius: "20px", color: sel ? "#4fc3f7" : "#666", padding: "5px 14px", fontSize: "12px", cursor: "pointer" }}>
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: "8px" }}>
+              <input value={newSubjectInput} onChange={(e) => setNewSubjectInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const s = newSubjectInput.trim(); if (!s) return; if (!editedSubjects.includes(s)) setEditedSubjects((p) => [...p, s]); if (!allSubjects.includes(s)) setAllSubjects((p) => [...p, s]); setNewSubjectInput(""); } }}
+                placeholder="Nova categoria..." style={{ flex: 1, background: "#1e1e1e", border: "1px solid #444", borderRadius: "4px", padding: "6px 10px", color: "#e0e0e0", fontSize: "13px", outline: "none" }} />
+              <button onClick={() => { const s = newSubjectInput.trim(); if (!s) return; if (!editedSubjects.includes(s)) setEditedSubjects((p) => [...p, s]); if (!allSubjects.includes(s)) setAllSubjects((p) => [...p, s]); setNewSubjectInput(""); }}
+                style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "6px 14px", cursor: "pointer", fontSize: "13px", fontWeight: "bold" }}>+</button>
+            </div>
+            <button onClick={() => setShowSubjectModal(false)} style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "9px", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}>
+              Confirmar
+            </button>
+          </div>
+        </div>
+      )}
       <Cabecalho />
       <div style={{ display: "flex", background: "#1e1e1e", minHeight: "calc(100vh - 60px)" }}>
         <SubjectsSidebar />
@@ -484,6 +530,21 @@ function PostPage() {
                 onChange={(e) => setEditedTitle(e.target.value)}
                 style={{ width: "100%", fontSize: "24px", fontWeight: "bold", background: "#2a2a2a", color: "#fff", border: "1px solid #444", borderRadius: "4px", padding: "8px", marginBottom: "16px", boxSizing: "border-box" }}
               />
+              {/* Subjects */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center", marginBottom: "12px" }}>
+                {editedSubjects.map((s) => (
+                  <span key={s} style={{ background: "#1d3a4a", color: "#4fc3f7", borderRadius: "20px", padding: "3px 10px", fontSize: "12px", display: "flex", alignItems: "center", gap: "5px", border: "1px solid #2a5a72" }}>
+                    {s}
+                    <button type="button" onClick={() => setEditedSubjects((prev) => prev.filter((x) => x !== s))}
+                      style={{ background: "none", border: "none", color: "#4fc3f7", cursor: "pointer", padding: 0, fontSize: "14px", lineHeight: 1 }}>×</button>
+                  </span>
+                ))}
+                <button type="button" onClick={() => setShowSubjectModal(true)}
+                  style={{ background: "none", border: "1px dashed #444", borderRadius: "20px", color: "#555", padding: "3px 10px", fontSize: "12px", cursor: "pointer" }}>
+                  + subject
+                </button>
+              </div>
+
               <input
                 ref={imageInputRef}
                 type="file"
@@ -583,16 +644,19 @@ function PostPage() {
                   )}
                 </div>
               </div>
-              <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px" }}>
-                Autor: {post.author} ·{" "}
-                <Link
-                  to={`/subject/${encodeURIComponent(post.subject)}`}
-                  style={{ color: "#888", textDecoration: "none", borderBottom: "1px solid #444" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; e.currentTarget.style.borderBottomColor = "#4fc3f7"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "#888"; e.currentTarget.style.borderBottomColor = "#444"; }}
-                >
-                  {post.subject}
-                </Link>
+              <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" }}>
+                <span>Autor: {post.author} ·</span>
+                {(post.subjects?.length > 0 ? post.subjects : [post.subject]).filter(Boolean).map((s) => (
+                  <Link
+                    key={s}
+                    to={`/subject/${encodeURIComponent(s)}`}
+                    style={{ color: "#888", textDecoration: "none", borderBottom: "1px solid #444" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; e.currentTarget.style.borderBottomColor = "#4fc3f7"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = "#888"; e.currentTarget.style.borderBottomColor = "#444"; }}
+                  >
+                    {s}
+                  </Link>
+                ))}
               </p>
               <div data-color-mode="dark" style={{ lineHeight: "1.8", fontSize: "15px" }}>
                 <ReactMarkdown
