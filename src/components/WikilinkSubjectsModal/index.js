@@ -1,8 +1,10 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 function WikilinkSubjectsModal({ wikilinks, defaultSubjects, allSubjects, confirmLabel, onConfirm, onCancel }) {
+  const { t } = useTranslation();
   const [assignments, setAssignments] = useState(() =>
-    Object.fromEntries(wikilinks.map((t) => [t, [...defaultSubjects]]))
+    Object.fromEntries(wikilinks.map((title) => [title, [...defaultSubjects]]))
   );
 
   const toggle = (title, subject) => {
@@ -16,7 +18,7 @@ function WikilinkSubjectsModal({ wikilinks, defaultSubjects, allSubjects, confir
   };
 
   const handleConfirm = () => {
-    onConfirm(wikilinks.map((t) => ({ title: t, subjects: assignments[t] || defaultSubjects })));
+    onConfirm(wikilinks.map((title) => ({ title, subjects: assignments[title] || defaultSubjects })));
   };
 
   return (
@@ -29,10 +31,8 @@ function WikilinkSubjectsModal({ wikilinks, defaultSubjects, allSubjects, confir
         style={{ background: "#242424", border: "1px solid #333", borderRadius: "8px", width: "440px", maxHeight: "520px", display: "flex", flexDirection: "column", padding: "24px", gap: "16px" }}
       >
         <div>
-          <h3 style={{ margin: "0 0 6px", color: "#e0e0e0", fontSize: "15px" }}>Categorias dos stubs</h3>
-          <p style={{ margin: 0, color: "#555", fontSize: "12px" }}>
-            Os [[links]] abaixo criarão novos posts. Defina as categorias de cada um.
-          </p>
+          <h3 style={{ margin: "0 0 6px", color: "#e0e0e0", fontSize: "15px" }}>{t("wikilinkModal.title")}</h3>
+          <p style={{ margin: 0, color: "#555", fontSize: "12px" }}>{t("wikilinkModal.desc")}</p>
         </div>
 
         <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -70,13 +70,13 @@ function WikilinkSubjectsModal({ wikilinks, defaultSubjects, allSubjects, confir
             onClick={handleConfirm}
             style={{ flex: 1, background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "9px", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}
           >
-            {confirmLabel || "Confirmar"}
+            {confirmLabel || t("wikilinkModal.confirm")}
           </button>
           <button
             onClick={onCancel}
             style={{ background: "none", border: "1px solid #444", borderRadius: "4px", color: "#888", cursor: "pointer", padding: "9px 18px", fontSize: "13px" }}
           >
-            Cancelar
+            {t("wikilinkModal.cancel")}
           </button>
         </div>
       </div>

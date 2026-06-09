@@ -4,6 +4,7 @@ import { ForceGraph2D } from "react-force-graph";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
 import { authFetch, parsePage } from "../../utils/api";
+import { useTranslation } from "react-i18next";
 
 function lerpColor(t) {
   const r = Math.round(26 + t * (79 - 26));
@@ -32,6 +33,7 @@ function SubjectPage() {
   const containerRef = useRef(null);
   const [graphWidth, setGraphWidth] = useState(600);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     Promise.all([
@@ -42,10 +44,10 @@ function SubjectPage() {
       summaryData.forEach((s) => { vcMap[s.postId] = s.viewCount || 0; });
 
       const subjectNodes = postsData
-        .filter((p) => (p.subject || "Sem categoria") === subject)
+        .filter((p) => (p.subject || t("sidebar.noCategory")) === subject)
         .map((p) => ({
           id: p.id,
-          title: p.title || "Sem título",
+          title: p.title || t("sidebar.noCategory"),
           content: p.content || "",
           isStub: p.isStub || false,
           viewCount: vcMap[p.id] || 0,
@@ -71,7 +73,7 @@ function SubjectPage() {
       setLinks(subjectLinks);
       setTopPost(best);
     }).catch((err) => console.error(err));
-  }, [subject]);
+  }, [subject]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -86,11 +88,11 @@ function SubjectPage() {
   const sortedPosts = [...nodes].filter((n) => !n.isStub).sort((a, b) => b.viewCount - a.viewCount);
 
   const paintNode = (node, ctx, globalScale) => {
-    const t = node.isStub ? 0 : node.viewCount / maxVc;
-    const radius = node.isStub ? 3 : 4 + t * 10;
+    const tv = node.isStub ? 0 : node.viewCount / maxVc;
+    const radius = node.isStub ? 3 : 4 + tv * 10;
     ctx.beginPath();
     ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
-    ctx.fillStyle = node.isStub ? "rgba(100, 150, 200, 0.3)" : lerpColor(t);
+    ctx.fillStyle = node.isStub ? "rgba(100, 150, 200, 0.3)" : lerpColor(tv);
     ctx.fill();
 
     const opacity = Math.min(1, Math.max(0, (globalScale - 0.5) / 0.8));
@@ -116,17 +118,15 @@ function SubjectPage() {
         <SubjectsSidebar />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-          {/* Header */}
           <div style={{ padding: "24px 32px 16px", borderBottom: "1px solid #2a2a2a" }}>
             <h1 style={{ color: "#e0e0e0", margin: 0, fontSize: "22px" }}>{subject}</h1>
             <p style={{ color: "#555", fontSize: "13px", margin: "4px 0 0" }}>
-              {nodes.length} post{nodes.length !== 1 ? "s" : ""}
+              {t("subjectPage.post", { count: nodes.length })}
             </p>
           </div>
 
           <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
-            {/* Card: grafo + preview */}
             <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
               <div
                 style={{
@@ -137,7 +137,6 @@ function SubjectPage() {
                   position: "relative",
                 }}
               >
-                {/* Grafo */}
                 <div ref={containerRef}>
                   <ForceGraph2D
                     graphData={{ nodes, links }}
@@ -153,7 +152,6 @@ function SubjectPage() {
                   />
                 </div>
 
-                {/* Overlay com preview */}
                 {topPost && (
                   <div
                     style={{
@@ -168,7 +166,7 @@ function SubjectPage() {
                   >
                     <div style={{ pointerEvents: "auto" }}>
                       <p style={{ color: "#4fc3f7", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.12em", margin: "0 0 5px" }}>
-                        Neste tópico
+                        {t("subjectPage.inThisTopic")}
                       </p>
                       <h3 style={{ color: "#e8e8e8", fontSize: "15px", margin: "0 0 7px", fontWeight: "bold", lineHeight: "1.3" }}>
                         {topPost.title}
@@ -182,7 +180,7 @@ function SubjectPage() {
                         onMouseEnter={(e) => { e.currentTarget.style.color = "#81d4fa"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
                       >
-                        Ler mais →
+                        {t("common.readMore")}
                       </Link>
                     </div>
                   </div>
@@ -190,7 +188,6 @@ function SubjectPage() {
               </div>
             </div>
 
-            {/* Lista de posts */}
             <div
               style={{
                 width: "260px",
@@ -201,7 +198,7 @@ function SubjectPage() {
               }}
             >
               <p style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px 16px" }}>
-                Posts
+                {t("subjectPage.posts")}
               </p>
               {sortedPosts.map((post, i) => (
                 <button

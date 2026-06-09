@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
+import "./i18n";
 import reportWebVitals from "./reportWebVitals";
 import MainRouter from "./MainRouter"; // Importando o roteador principal
 

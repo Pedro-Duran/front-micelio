@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Cabecalho from "../Cabecalho";
+import { useTranslation } from "react-i18next";
 
 function ResetPasswordPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { login } = useAuth();
+  const { t } = useTranslation();
   const token = searchParams.get("token") || "";
 
   const [newPassword, setNewPassword] = useState("");
@@ -17,7 +19,7 @@ function ResetPasswordPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (newPassword !== confirm) { setError("As senhas não coincidem."); return; }
+    if (newPassword !== confirm) { setError(t("resetPassword.passwordMismatch")); return; }
     setError("");
     setIsLoading(true);
     try {
@@ -26,10 +28,9 @@ function ResetPasswordPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, newPassword }),
       });
-      if (res.status === 400) { setError("Link inválido ou expirado. Solicite um novo."); return; }
+      if (res.status === 400) { setError(t("resetPassword.expiredLink")); return; }
       if (!res.ok) throw new Error();
 
-      // Se o backend retornar { token, username }, faz login automático
       let data = null;
       try { data = await res.json(); } catch {}
       if (data?.token && data?.username) {
@@ -39,7 +40,7 @@ function ResetPasswordPage() {
         setDone(true);
       }
     } catch {
-      setError("Não foi possível conectar ao servidor.");
+      setError(t("resetPassword.serverError"));
     } finally {
       setIsLoading(false);
     }
@@ -54,31 +55,31 @@ function ResetPasswordPage() {
         <div style={{ background: "#2a2a2a", padding: "40px 48px", borderRadius: "8px", width: "320px", display: "flex", flexDirection: "column", gap: "16px" }}>
           {!token ? (
             <>
-              <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px" }}>Link inválido</h3>
-              <p style={{ color: "#888", fontSize: "13px", margin: 0 }}>O link de redefinição não contém um token válido.</p>
+              <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px" }}>{t("resetPassword.invalidLink")}</h3>
+              <p style={{ color: "#888", fontSize: "13px", margin: 0 }}>{t("resetPassword.invalidLinkDesc")}</p>
               <button onClick={() => navigate("/login")} style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "10px", fontSize: "14px", fontWeight: "bold", cursor: "pointer" }}>
-                Voltar ao login
+                {t("resetPassword.backToLogin")}
               </button>
             </>
           ) : done ? (
             <>
-              <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px" }}>Senha redefinida</h3>
-              <p style={{ color: "#888", fontSize: "13px", margin: 0 }}>Sua nova senha foi salva. Você já pode fazer login.</p>
+              <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px" }}>{t("resetPassword.passwordReset")}</h3>
+              <p style={{ color: "#888", fontSize: "13px", margin: 0 }}>{t("resetPassword.passwordResetDesc")}</p>
               <button onClick={() => navigate("/login")} style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "10px", fontSize: "14px", fontWeight: "bold", cursor: "pointer" }}>
-                Ir para o login
+                {t("resetPassword.goToLogin")}
               </button>
             </>
           ) : (
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px" }}>Criar nova senha</h3>
+              <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px" }}>{t("resetPassword.createNewPassword")}</h3>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label style={{ color: "#888", fontSize: "12px" }}>Nova senha</label>
+                <label style={{ color: "#888", fontSize: "12px" }}>{t("resetPassword.newPassword")}</label>
                 <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required autoComplete="new-password" style={inputStyle} />
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label style={{ color: "#888", fontSize: "12px" }}>Confirmar senha</label>
+                <label style={{ color: "#888", fontSize: "12px" }}>{t("resetPassword.confirmPassword")}</label>
                 <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required autoComplete="new-password" style={inputStyle} />
               </div>
 
@@ -89,7 +90,7 @@ function ResetPasswordPage() {
                 disabled={isLoading}
                 style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "10px", fontSize: "14px", fontWeight: "bold", cursor: isLoading ? "default" : "pointer" }}
               >
-                {isLoading ? "Salvando..." : "Salvar nova senha"}
+                {isLoading ? t("resetPassword.saving") : t("resetPassword.savePassword")}
               </button>
             </form>
           )}

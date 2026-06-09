@@ -5,6 +5,7 @@ import Cabecalho from "../Cabecalho";
 import WikilinkSubjectsModal from "../WikilinkSubjectsModal";
 import { authFetch } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 const parseWikilinks = (content) => {
   const regex = /\[\[([^\[\]]+)\]\]/g;
@@ -21,6 +22,7 @@ function NovoPost() {
   const navigate = useNavigate();
   const location = useLocation();
   const { username } = useAuth();
+  const { t } = useTranslation();
 
   const refTitle = location.state?.refTitle || null;
 
@@ -41,7 +43,6 @@ function NovoPost() {
       .then((data) => setAllSubjects(data));
   }, []);
 
-  // Auto-open subject modal when coming from ref post
   useEffect(() => {
     if (refTitle) setShowSubjectModal(true);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -76,11 +77,11 @@ function NovoPost() {
         method: "POST",
         body: JSON.stringify(body),
       });
-      if (!response.ok) throw new Error("Erro ao criar o post.");
+      if (!response.ok) throw new Error(t("newPost.createError"));
       navigate("/");
     } catch (error) {
       console.error(error);
-      alert("Ocorreu um erro ao criar o post.");
+      alert(t("newPost.createErrorDetail"));
     } finally {
       setIsSubmitting(false);
     }
@@ -113,12 +114,11 @@ function NovoPost() {
           wikilinks={pendingWikilinks}
           defaultSubjects={selectedSubjects}
           allSubjects={allSubjects}
-          confirmLabel="Confirmar e publicar"
+          confirmLabel={t("newPost.confirmPublish")}
           onConfirm={(assignments) => doSubmit(assignments)}
           onCancel={() => setPendingWikilinks(null)}
         />
       )}
-      {/* Subject modal */}
       {showSubjectModal && (
         <div
           onClick={() => setShowSubjectModal(false)}
@@ -128,7 +128,7 @@ function NovoPost() {
             onClick={(e) => e.stopPropagation()}
             style={{ background: "#242424", border: "1px solid #333", borderRadius: "8px", width: "380px", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}
           >
-            <h3 style={{ margin: 0, color: "#e0e0e0", fontSize: "15px" }}>Selecionar categorias</h3>
+            <h3 style={{ margin: 0, color: "#e0e0e0", fontSize: "15px" }}>{t("newPost.selectCategories")}</h3>
 
             {allSubjects.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
@@ -157,7 +157,7 @@ function NovoPost() {
                 value={newSubjectInput}
                 onChange={(e) => setNewSubjectInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNewSubject(); } }}
-                placeholder="Nova categoria..."
+                placeholder={t("newPost.newCategory")}
                 style={{ flex: 1, background: "#1e1e1e", border: "1px solid #444", borderRadius: "4px", padding: "6px 10px", color: "#e0e0e0", fontSize: "13px", outline: "none" }}
               />
               <button
@@ -172,7 +172,7 @@ function NovoPost() {
               onClick={() => setShowSubjectModal(false)}
               style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "9px", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}
             >
-              Confirmar
+              {t("newPost.confirm")}
             </button>
           </div>
         </div>
@@ -180,12 +180,12 @@ function NovoPost() {
 
       <Cabecalho />
       <div style={{ background: "#1e1e1e", minHeight: "calc(100vh - 60px)", padding: "40px 60px", color: "#e0e0e0" }}>
-        <h1 style={{ fontSize: "22px", marginTop: 0, marginBottom: "32px" }}>Novo post</h1>
+        <h1 style={{ fontSize: "22px", marginTop: 0, marginBottom: "32px" }}>{t("newPost.title")}</h1>
 
         <form onSubmit={handleSubmit} style={{ maxWidth: "860px", display: "flex", flexDirection: "column", gap: "20px" }}>
 
           <div>
-            <label style={labelStyle}>Título</label>
+            <label style={labelStyle}>{t("newPost.titlePlaceholder")}</label>
             <input
               type="text"
               value={title}
@@ -196,10 +196,10 @@ function NovoPost() {
           </div>
 
           <div>
-            <label style={labelStyle}>Conteúdo — use [[título]] para linkar outros posts</label>
+            <label style={labelStyle}>{t("newPost.contentPlaceholder")}</label>
             {refTitle && (
               <p style={{ margin: "0 0 8px", padding: "8px 12px", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: "4px", color: "#666", fontSize: "12px" }}>
-                Referência pré-inserida: <span style={{ color: "#4fc3f7", fontFamily: "monospace" }}>[[{refTitle}]]</span> — mova-a para onde quiser no texto.
+                {t("newPost.preInsertedRef", { text: refTitle })}
               </p>
             )}
             <div data-color-mode="dark">
@@ -214,10 +214,9 @@ function NovoPost() {
             </div>
           </div>
 
-          {/* Subjects */}
           <div>
             <label style={{ ...labelStyle, color: subjectError ? "#f44336" : "#888" }}>
-              Categorias{subjectError && " — selecione pelo menos uma"}
+              {subjectError ? t("newPost.categoriesRequired") : t("newPost.categories")}
             </label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
               {selectedSubjects.map((s) => (
@@ -245,7 +244,7 @@ function NovoPost() {
                   padding: "4px 12px", fontSize: "12px", cursor: "pointer",
                 }}
               >
-                + Adicionar categoria
+                {t("newPost.addCategory")}
               </button>
             </div>
           </div>
@@ -256,14 +255,14 @@ function NovoPost() {
               disabled={isSubmitting}
               style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "10px 24px", fontSize: "14px", fontWeight: "bold", cursor: isSubmitting ? "default" : "pointer" }}
             >
-              {isSubmitting ? "Publicando..." : "Publicar"}
+              {isSubmitting ? t("newPost.publishing") : t("newPost.publish")}
             </button>
             <button
               type="button"
               onClick={() => navigate(-1)}
               style={{ background: "none", border: "1px solid #444", borderRadius: "4px", color: "#888", cursor: "pointer", padding: "10px 20px", fontSize: "14px" }}
             >
-              Cancelar
+              {t("common.cancel")}
             </button>
           </div>
 

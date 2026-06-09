@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { authFetch } from "../../utils/api";
+import { useTranslation } from "react-i18next";
 
 function StubModal({ postId, postTitle, onClose }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState("ask");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -14,7 +16,7 @@ function StubModal({ postId, postTitle, onClose }) {
       if (!res.ok) throw new Error();
       setStep("done");
     } catch {
-      setError("Não foi possível registrar. Verifique se está logado.");
+      setError(t("stubModal.error"));
     } finally {
       setLoading(false);
     }
@@ -32,11 +34,10 @@ function StubModal({ postId, postTitle, onClose }) {
         {step === "ask" ? (
           <>
             <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px", fontWeight: "600" }}>
-              Post não escrito ainda
+              {t("stubModal.title")}
             </h3>
             <p style={{ color: "#888", fontSize: "13px", lineHeight: "1.6", margin: 0 }}>
-              <span style={{ color: "#ccc" }}>"{postTitle}"</span> ainda não foi escrito.
-              Deseja receber uma notificação quando for publicado?
+              <span style={{ color: "#ccc" }}>"{postTitle}"</span> {t("stubModal.notWrittenYet")}
             </p>
             {error && <p style={{ color: "#f44336", fontSize: "12px", margin: 0 }}>{error}</p>}
             <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
@@ -45,27 +46,27 @@ function StubModal({ postId, postTitle, onClose }) {
                 disabled={loading}
                 style={{ flex: 1, background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "9px", fontSize: "13px", fontWeight: "bold", cursor: loading ? "default" : "pointer" }}
               >
-                {loading ? "..." : "Sim, me avise"}
+                {loading ? "..." : t("stubModal.yes")}
               </button>
               <button
                 onClick={onClose}
                 style={{ flex: 1, background: "none", border: "1px solid #444", borderRadius: "4px", padding: "9px", fontSize: "13px", color: "#888", cursor: "pointer" }}
               >
-                Não
+                {t("stubModal.no")}
               </button>
             </div>
           </>
         ) : (
           <>
-            <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px", fontWeight: "600" }}>Tudo certo!</h3>
+            <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px", fontWeight: "600" }}>{t("stubModal.success")}</h3>
             <p style={{ color: "#888", fontSize: "13px", lineHeight: "1.6", margin: 0 }}>
-              Você será notificado quando esse post for publicado.
+              {t("stubModal.successDesc")}
             </p>
             <button
               onClick={onClose}
               style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "9px", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}
             >
-              Fechar
+              {t("stubModal.close")}
             </button>
           </>
         )}

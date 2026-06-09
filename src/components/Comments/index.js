@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { authFetch } from "../../utils/api";
+import { useTranslation } from "react-i18next";
 
-function timeAgo(iso) {
+function timeAgo(iso, t) {
   if (!iso) return "";
   const s = Math.floor((Date.now() - new Date(iso)) / 1000);
-  if (s < 60) return "agora mesmo";
+  if (s < 60) return t("common.now");
   const m = Math.floor(s / 60);
-  if (m < 60) return `há ${m} min`;
+  if (m < 60) return t("common.minutesAgo", { count: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `há ${h}h`;
+  if (h < 24) return t("common.hoursAgo", { count: h });
   const d = Math.floor(h / 24);
-  if (d < 7) return `há ${d}d`;
-  return new Date(iso).toLocaleDateString("pt-BR");
+  if (d < 7) return t("common.daysAgo", { count: d });
+  return new Date(iso).toLocaleDateString();
 }
 
 const inputStyle = {
@@ -27,6 +28,7 @@ const inputStyle = {
 
 function LoginModal({ onClose, onSuccess }) {
   const { login } = useAuth();
+  const { t } = useTranslation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -42,13 +44,13 @@ function LoginModal({ onClose, onSuccess }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      if (res.status === 401) { setError("Usuário ou senha incorretos."); return; }
+      if (res.status === 401) { setError(t("comments.wrongCredentials")); return; }
       if (!res.ok) throw new Error();
       const data = await res.json();
       login(data.token, data.username);
       onSuccess();
     } catch {
-      setError("Não foi possível conectar ao servidor.");
+      setError(t("comments.serverError"));
     } finally {
       setLoading(false);
     }
@@ -63,11 +65,11 @@ function LoginModal({ onClose, onSuccess }) {
         style={{ background: "#2a2a2a", borderRadius: "8px", padding: "32px 40px", width: "300px", display: "flex", flexDirection: "column", gap: "14px" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px" }}>Entre para comentar</h3>
+        <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px" }}>{t("comments.loginToComment")}</h3>
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <input
             type="text"
-            placeholder="Usuário"
+            placeholder={t("auth.username")}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
@@ -76,7 +78,7 @@ function LoginModal({ onClose, onSuccess }) {
           />
           <input
             type="password"
-            placeholder="Senha"
+            placeholder={t("auth.password")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -88,7 +90,7 @@ function LoginModal({ onClose, onSuccess }) {
             disabled={loading}
             style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "9px", fontSize: "14px", fontWeight: "bold", cursor: loading ? "default" : "pointer" }}
           >
-            {loading ? "Entrando..." : "Entrar"}
+            {loading ? t("comments.logging") : t("comments.login")}
           </button>
         </form>
       </div>
@@ -98,6 +100,7 @@ function LoginModal({ onClose, onSuccess }) {
 
 function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, depth }) {
   const { isLoggedIn } = useAuth();
+  const { t } = useTranslation();
   const [replying, setReplying] = useState(false);
   const [replyContent, setReplyContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -124,7 +127,7 @@ function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, de
       setDisplayContent(updated.content);
       setEditing(false);
     } catch {
-      alert("Erro ao editar comentário.");
+      alert(t("comments.editError"));
     } finally {
       setSaving(false);
     }
@@ -143,7 +146,7 @@ function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, de
       setReplying(false);
       onRefresh();
     } catch {
-      alert("Erro ao enviar resposta.");
+      alert(t("comments.replyError"));
     } finally {
       setSubmitting(false);
     }
@@ -174,7 +177,7 @@ function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, de
           <span style={{ color: "#e0e0e0", fontSize: "13px", fontWeight: "500" }}>
             {comment.authorUsername}
           </span>
-          <span style={{ color: "#444", fontSize: "11px" }}>{timeAgo(comment.createdAt)}</span>
+          <span style={{ color: "#444", fontSize: "11px" }}>{timeAgo(comment.createdAt, t)}</span>
         </div>
         {editing ? (
           <div style={{ marginBottom: "8px" }}>
@@ -192,13 +195,13 @@ function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, de
                 disabled={saving || !editContent.trim()}
                 style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "6px 14px", fontSize: "12px", fontWeight: "bold", cursor: saving || !editContent.trim() ? "default" : "pointer" }}
               >
-                {saving ? "..." : "Salvar"}
+                {saving ? "..." : t("common.save")}
               </button>
               <button
                 onClick={() => { setEditing(false); setEditContent(displayContent); }}
                 style={{ background: "none", border: "1px solid #333", borderRadius: "4px", padding: "6px 10px", color: "#666", fontSize: "12px", cursor: "pointer" }}
               >
-                Cancelar
+                {t("common.cancel")}
               </button>
             </div>
           </div>
@@ -214,7 +217,7 @@ function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, de
             onMouseEnter={(e) => { e.currentTarget.style.color = "#aaa"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; }}
           >
-            Responder
+            {t("comments.reply")}
           </button>
           {canEdit && !editing && (
             <button
@@ -223,7 +226,7 @@ function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, de
               onMouseEnter={(e) => { e.currentTarget.style.color = "#aaa"; }}
               onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; }}
             >
-              Editar
+              {t("common.edit")}
             </button>
           )}
           {canDelete && (
@@ -233,7 +236,7 @@ function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, de
               onMouseEnter={(e) => { e.currentTarget.style.color = "#f44336"; }}
               onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; }}
             >
-              Deletar
+              {t("common.delete")}
             </button>
           )}
         </div>
@@ -243,7 +246,7 @@ function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, de
             <input
               value={replyContent}
               onChange={(e) => setReplyContent(e.target.value)}
-              placeholder="Sua resposta..."
+              placeholder={t("comments.replyPlaceholder")}
               autoFocus
               style={inputStyle}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submitReply(); }}
@@ -253,7 +256,7 @@ function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, de
               disabled={submitting || !replyContent.trim()}
               style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "8px 14px", fontSize: "13px", fontWeight: "bold", cursor: submitting || !replyContent.trim() ? "default" : "pointer" }}
             >
-              {submitting ? "..." : "Responder"}
+              {submitting ? "..." : t("comments.reply")}
             </button>
             <button
               onClick={() => { setReplying(false); setReplyContent(""); }}
@@ -282,6 +285,7 @@ function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, de
 
 function Comments({ postId }) {
   const { isLoggedIn, username } = useAuth();
+  const { t } = useTranslation();
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -308,7 +312,7 @@ function Comments({ postId }) {
       setNewComment("");
       fetchComments();
     } catch {
-      alert("Erro ao enviar comentário.");
+      alert(t("comments.sendError"));
     } finally {
       setSubmitting(false);
     }
@@ -325,13 +329,13 @@ function Comments({ postId }) {
   };
 
   const handleDelete = async (commentId) => {
-    if (!window.confirm("Deletar comentário?")) return;
+    if (!window.confirm(t("comments.deleteConfirm"))) return;
     try {
       const res = await authFetch(`/api/comments/${commentId}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
       fetchComments();
     } catch {
-      alert("Erro ao deletar comentário.");
+      alert(t("comments.deleteError"));
     }
   };
 
@@ -356,12 +360,11 @@ function Comments({ postId }) {
         {totalCount > 0 ? `${totalCount} comentário${totalCount !== 1 ? "s" : ""}` : "Comentários"}
       </h4>
 
-      {/* Formulário */}
       <div style={{ display: "flex", gap: "8px", marginBottom: "28px" }}>
         <input
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
-          placeholder={isLoggedIn ? "Escreva um comentário..." : "Entre para comentar..."}
+          placeholder={isLoggedIn ? t("comments.commentPlaceholder") : t("comments.loginPlaceholder")}
           style={inputStyle}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) handleSubmit(); }}
         />
@@ -370,13 +373,12 @@ function Comments({ postId }) {
           disabled={submitting || !newComment.trim()}
           style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "8px 18px", fontSize: "14px", fontWeight: "bold", cursor: submitting || !newComment.trim() ? "default" : "pointer" }}
         >
-          {submitting ? "..." : "Comentar"}
+          {submitting ? "..." : t("comments.comment")}
         </button>
       </div>
 
-      {/* Lista */}
       {comments.length === 0 ? (
-        <p style={{ color: "#444", fontSize: "14px" }}>Nenhum comentário ainda.</p>
+        <p style={{ color: "#444", fontSize: "14px" }}>{t("comments.noComments")}</p>
       ) : (
         <div>
           {comments.map((c) => (

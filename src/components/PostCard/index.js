@@ -1,5 +1,6 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 function stripMarkdown(text) {
   return (text || "")
@@ -12,21 +13,22 @@ function stripMarkdown(text) {
     .trim();
 }
 
-function timeAgo(iso) {
+function timeAgo(iso, t) {
   if (!iso) return "";
   const s = Math.floor((Date.now() - new Date(iso)) / 1000);
-  if (s < 60) return "agora mesmo";
+  if (s < 60) return t("common.now");
   const m = Math.floor(s / 60);
-  if (m < 60) return `há ${m} min`;
+  if (m < 60) return t("common.minutesAgo", { count: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `há ${h}h`;
+  if (h < 24) return t("common.hoursAgo", { count: h });
   const d = Math.floor(h / 24);
-  if (d < 7) return `há ${d}d`;
-  return new Date(iso).toLocaleDateString("pt-BR");
+  if (d < 7) return t("common.daysAgo", { count: d });
+  return new Date(iso).toLocaleDateString();
 }
 
 function PostCard({ post }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const preview = stripMarkdown(post.content);
   const excerpt = preview.length > 220 ? preview.slice(0, 220) + "…" : preview;
 
@@ -67,7 +69,7 @@ function PostCard({ post }) {
             </Link>
           )}
         </div>
-        <span style={{ color: "#444", fontSize: "11px" }}>{timeAgo(post.createdAt)}</span>
+        <span style={{ color: "#444", fontSize: "11px" }}>{timeAgo(post.createdAt, t)}</span>
       </div>
       <h3 style={{ color: "#e0e0e0", fontSize: "15px", margin: "0 0 6px", fontWeight: "600", lineHeight: "1.4" }}>
         {post.title}

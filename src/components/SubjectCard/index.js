@@ -3,6 +3,7 @@ import { ForceGraph2D } from "react-force-graph";
 import { Link, useNavigate } from "react-router-dom";
 import StubModal from "../StubModal";
 import { useAuth } from "../../context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 function lerpColor(t) {
   const r = Math.round(26 + t * (79 - 26));
@@ -25,6 +26,7 @@ function stripMarkdown(text) {
 function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOwner = false }) {
   const navigate = useNavigate();
   const { username: currentUsername } = useAuth();
+  const { t } = useTranslation();
   const [showList, setShowList] = useState(false);
   const [stubModal, setStubModal] = useState(null); // { id, title }
 
@@ -193,7 +195,7 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
               onMouseLeave={(e) => { e.currentTarget.style.color = "#888"; }}
               style={{ color: "#888", fontSize: "11px", fontWeight: "normal", cursor: "pointer", userSelect: "none", flexShrink: 0, whiteSpace: "nowrap" }}
             >
-              {nodes.length} post{nodes.length !== 1 ? "s" : ""} {showList ? " □ " : " ○ "}
+              {t("subjectCard.post", { count: nodes.length })} {showList ? " □ " : " ○ "}
             </span>
           </div>
         </div>
@@ -227,7 +229,7 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
             >
               <div style={{ pointerEvents: "auto" }}>
                 <p style={{ color: "#4fc3f7", fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.12em", margin: "0 0 4px" }}>
-                  Neste tópico
+                  {t("subjectCard.inThisTopic")}
                 </p>
                 <h4 style={{ color: "#e8e8e8", fontSize: "13px", margin: "0 0 5px", fontWeight: "bold", lineHeight: "1.3" }}>
                   {topPost.title}
@@ -244,7 +246,7 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
                   onMouseLeave={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
                   style={{ color: "#4fc3f7", fontSize: "12px", textDecoration: "none", fontWeight: "500" }}
                 >
-                  Ler mais →
+                  {t("common.readMore")}
                 </Link>
               </div>
             </div>

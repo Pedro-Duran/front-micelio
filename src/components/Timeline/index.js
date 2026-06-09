@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { ForceGraph2D } from "react-force-graph";
 import Cabecalho from "../Cabecalho";
 import { parsePage } from "../../utils/api";
+import { useTranslation } from "react-i18next";
 
 const SPEEDS = { Devagar: 2000, Normal: 1000, "Rápido": 400 };
 
@@ -14,6 +15,7 @@ function Timeline() {
   const [speed, setSpeed] = useState("Normal");
   const [isRecording, setIsRecording] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
+  const { t } = useTranslation();
 
   const containerRef = useRef();
   const recorderRef = useRef();
@@ -41,7 +43,6 @@ function Timeline() {
     return () => observer.disconnect();
   }, []);
 
-  // Loop de animação
   useEffect(() => {
     if (!isPlaying) return;
 
@@ -124,6 +125,12 @@ function Timeline() {
   const progress = allPosts.length > 0 ? (currentIndex / allPosts.length) * 100 : 0;
   const currentPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 
+  const speedLabels = {
+    Devagar: t("timeline.slow"),
+    Normal: t("timeline.normal"),
+    "Rápido": t("timeline.fast"),
+  };
+
   return (
     <>
       <Cabecalho />
@@ -135,11 +142,10 @@ function Timeline() {
           flexDirection: "column",
         }}
       >
-        {/* Área do grafo */}
         <div ref={containerRef} style={{ flex: 1, position: "relative", overflow: "hidden" }}>
           {allPosts.length === 0 ? (
             <div style={{ color: "#888", padding: "60px", textAlign: "center" }}>
-              Carregando posts...
+              {t("timeline.loading")}
             </div>
           ) : (
             <ForceGraph2D
@@ -166,7 +172,6 @@ function Timeline() {
             />
           )}
 
-          {/* Overlay com post atual */}
           {currentPost && (
             <div
               style={{
@@ -201,12 +206,11 @@ function Timeline() {
                 pointerEvents: "none",
               }}
             >
-              {allPosts.length} posts · fim
+              {t("timeline.done", { count: allPosts.length })}
             </div>
           )}
         </div>
 
-        {/* Barra de controles */}
         <div
           style={{
             height: "72px",
@@ -219,7 +223,6 @@ function Timeline() {
             flexShrink: 0,
           }}
         >
-          {/* Play / Pause */}
           <button
             onClick={isPlaying ? () => setIsPlaying(false) : handlePlay}
             disabled={allPosts.length === 0}
@@ -238,7 +241,6 @@ function Timeline() {
             {isPlaying ? "⏸" : "▶"}
           </button>
 
-          {/* Barra de progresso */}
           <div
             style={{
               flex: 1,
@@ -259,7 +261,6 @@ function Timeline() {
             />
           </div>
 
-          {/* Controle de velocidade */}
           <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
             {Object.keys(SPEEDS).map((s) => (
               <button
@@ -275,12 +276,11 @@ function Timeline() {
                   fontSize: "12px",
                 }}
               >
-                {s}
+                {speedLabels[s]}
               </button>
             ))}
           </div>
 
-          {/* Gravar e baixar */}
           <button
             onClick={handleRecord}
             disabled={isRecording || isPlaying || allPosts.length === 0}
@@ -295,7 +295,7 @@ function Timeline() {
               flexShrink: 0,
             }}
           >
-            {isRecording ? "⏺ Gravando..." : "⬇ Gravar e baixar"}
+            {isRecording ? t("timeline.recording") : t("timeline.record")}
           </button>
         </div>
       </div>

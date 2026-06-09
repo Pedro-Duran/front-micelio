@@ -5,20 +5,20 @@ import SubjectsSidebar from "../SubjectsSidebar";
 import Avatar from "../Avatar";
 import { authFetch, parsePage } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 function UsersPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isLoggedIn, username: currentUser } = useAuth();
+  const { t } = useTranslation();
 
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
-  // Set of usernames the current user already follows
   const [followingSet, setFollowingSet] = useState(new Set());
   const [loadingFollow, setLoadingFollow] = useState(new Set());
 
-  // Fetch users whenever URL param changes
   useEffect(() => {
     const q = searchParams.get("q") || "";
     setQuery(q);
@@ -37,7 +37,6 @@ function UsersPage() {
       });
   }, [searchParams]);
 
-  // Fetch who the current user follows (single call, derive follow state locally)
   useEffect(() => {
     if (!isLoggedIn || !currentUser) return;
     fetch(`/api/users/${currentUser}/following`)
@@ -87,7 +86,6 @@ function UsersPage() {
         <SubjectsSidebar />
         <div style={{ flex: 1, maxWidth: "600px", margin: "0 auto", padding: "32px 24px" }}>
 
-          {/* Search bar */}
           <form
             onSubmit={handleSubmit}
             style={{ display: "flex", marginBottom: "32px", border: "1px solid #333", borderRadius: "6px", overflow: "hidden" }}
@@ -95,7 +93,7 @@ function UsersPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar usuário..."
+              placeholder={t("users.searchPlaceholder")}
               autoFocus
               style={{ flex: 1, background: "transparent", border: "none", padding: "10px 14px", color: "#e0e0e0", fontSize: "14px", outline: "none" }}
             />
@@ -112,12 +110,11 @@ function UsersPage() {
             </button>
           </form>
 
-          {/* Results */}
           {loading ? (
-            <p style={{ color: "#444", fontSize: "13px", textAlign: "center", padding: "40px 0" }}>Carregando...</p>
+            <p style={{ color: "#444", fontSize: "13px", textAlign: "center", padding: "40px 0" }}>{t("common.loading")}</p>
           ) : users.length === 0 ? (
             <p style={{ color: "#444", fontSize: "14px", textAlign: "center", padding: "48px 0" }}>
-              {initialQ ? `Nenhum usuário encontrado para "${initialQ}".` : "Nenhum usuário encontrado."}
+              {initialQ ? t("users.noResultsFor", { query: initialQ }) : t("users.noResults")}
             </p>
           ) : (
             <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -163,7 +160,7 @@ function UsersPage() {
                           flexShrink: 0,
                         }}
                       >
-                        {isLoading ? "..." : isFollowing ? "Seguindo" : "Seguir"}
+                        {isLoading ? "..." : isFollowing ? t("users.following") : t("users.follow")}
                       </button>
                     )}
                   </li>

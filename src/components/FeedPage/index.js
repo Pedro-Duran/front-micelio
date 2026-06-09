@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
 import { authFetch, parsePage } from "../../utils/api";
+import { useTranslation } from "react-i18next";
 
 const PAGE_SIZE = 20;
 
 function FeedPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [tab, setTab] = useState("explore");
   const [posts, setPosts] = useState([]);
   const [page, setPage] = useState(0);
@@ -43,6 +45,11 @@ function FeedPage() {
 
   const isEmpty = !loading && posts.length === 0;
 
+  const tabs = [
+    { key: "feed", label: t("feed.following") },
+    { key: "explore", label: t("feed.explore") },
+  ];
+
   return (
     <>
       <Cabecalho />
@@ -52,10 +59,7 @@ function FeedPage() {
 
           {/* Tabs */}
           <div style={{ display: "flex", marginBottom: "28px", borderBottom: "1px solid #2a2a2a" }}>
-            {[
-              { key: "feed", label: "Seguindo" },
-              { key: "explore", label: "Explorar" },
-            ].map(({ key, label }) => (
+            {tabs.map(({ key, label }) => (
               <button
                 key={key}
                 onClick={() => switchTab(key)}
@@ -112,7 +116,7 @@ function FeedPage() {
                       <span style={{ color: "#4fc3f7", marginRight: "6px" }}>{post.subject}</span>
                     )}
                     {post.authorUsername || post.author?.username}
-                    {post.isStub && <span style={{ marginLeft: "6px" }}>· stub</span>}
+                    {post.isStub && <span style={{ marginLeft: "6px" }}>{t("feed.stub")}</span>}
                   </span>
                 </div>
               </button>
@@ -120,25 +124,25 @@ function FeedPage() {
           </div>
 
           {loading && (
-            <p style={{ color: "#444", fontSize: "13px", marginTop: "20px" }}>Carregando...</p>
+            <p style={{ color: "#444", fontSize: "13px", marginTop: "20px" }}>{t("common.loading")}</p>
           )}
 
           {isEmpty && tab === "feed" && (
             <div style={{ textAlign: "center", padding: "60px 20px" }}>
               <p style={{ color: "#555", fontSize: "15px", marginBottom: "16px" }}>
-                Você ainda não segue ninguém.
+                {t("feed.noFollowing")}
               </p>
               <button
                 onClick={() => switchTab("explore")}
                 style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "9px 22px", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}
               >
-                Explorar posts
+                {t("feed.explorePosts")}
               </button>
             </div>
           )}
 
           {isEmpty && tab === "explore" && (
-            <p style={{ color: "#444", fontSize: "14px" }}>Nenhum post encontrado.</p>
+            <p style={{ color: "#444", fontSize: "14px" }}>{t("feed.noPosts")}</p>
           )}
 
           {hasMore && !loading && posts.length > 0 && (
@@ -149,7 +153,7 @@ function FeedPage() {
                 onMouseEnter={(e) => { e.currentTarget.style.color = "#999"; e.currentTarget.style.borderColor = "#3a3a3a"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; e.currentTarget.style.borderColor = "#2e2e2e"; }}
               >
-                Carregar mais
+                {t("feed.loadMore")}
               </button>
             </div>
           )}

@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Cabecalho from "../Cabecalho";
+import { useTranslation } from "react-i18next";
 
 function Login() {
   const { login } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [mode, setMode] = useState("login"); // "login" | "register" | "forgot"
   const [username, setUsername] = useState("");
@@ -36,7 +38,7 @@ function Login() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        if (res.status === 400) { setError("Nome de usuário já existe."); return; }
+        if (res.status === 400) { setError(t("auth.usernameExists")); return; }
         if (!res.ok) throw new Error();
       }
 
@@ -45,14 +47,14 @@ function Login() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      if (res.status === 401) { setError("Usuário ou senha incorretos."); return; }
+      if (res.status === 401) { setError(t("auth.wrongCredentials")); return; }
       if (!res.ok) throw new Error();
 
       const data = await res.json();
       login(data.token, data.username);
       navigate("/");
     } catch {
-      setError("Não foi possível conectar ao servidor.");
+      setError(t("auth.serverError"));
     } finally {
       setIsLoading(false);
     }
@@ -70,7 +72,7 @@ function Login() {
       });
       setForgotSent(true);
     } catch {
-      setError("Não foi possível conectar ao servidor.");
+      setError(t("auth.serverError"));
     } finally {
       setIsLoading(false);
     }
@@ -92,30 +94,30 @@ function Login() {
               onClick={() => reset("login")}
               style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "12px", textAlign: "left", padding: 0 }}
             >
-              ← Voltar ao login
+              {t("auth.backToLogin")}
             </button>
 
             {forgotSent ? (
               <>
-                <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px" }}>Email enviado</h3>
+                <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px" }}>{t("auth.emailSent")}</h3>
                 <p style={{ color: "#888", fontSize: "13px", lineHeight: "1.6", margin: 0 }}>
-                  Se esse endereço estiver cadastrado, você receberá um link para redefinir sua senha.
+                  {t("auth.emailSentDesc")}
                 </p>
                 <button
                   onClick={() => reset("login")}
                   style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "10px", fontSize: "14px", fontWeight: "bold", cursor: "pointer" }}
                 >
-                  Voltar ao login
+                  {t("auth.backToLoginSimple")}
                 </button>
               </>
             ) : (
               <form onSubmit={handleForgot} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div>
-                  <h3 style={{ color: "#e0e0e0", margin: "0 0 4px", fontSize: "15px" }}>Esqueceu sua senha?</h3>
-                  <p style={{ color: "#666", fontSize: "12px", margin: 0 }}>Informe o email da sua conta.</p>
+                  <h3 style={{ color: "#e0e0e0", margin: "0 0 4px", fontSize: "15px" }}>{t("auth.forgotPassword")}</h3>
+                  <p style={{ color: "#666", fontSize: "12px", margin: 0 }}>{t("auth.forgotPasswordDesc")}</p>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <label style={{ color: "#888", fontSize: "12px" }}>Email</label>
+                  <label style={{ color: "#888", fontSize: "12px" }}>{t("auth.email")}</label>
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />
                 </div>
                 {error && <p style={{ color: "#f44336", fontSize: "13px", margin: 0 }}>{error}</p>}
@@ -124,7 +126,7 @@ function Login() {
                   disabled={isLoading}
                   style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "10px", fontSize: "14px", fontWeight: "bold", cursor: isLoading ? "default" : "pointer" }}
                 >
-                  {isLoading ? "Enviando..." : "Enviar link"}
+                  {isLoading ? t("auth.sending") : t("auth.sendLink")}
                 </button>
               </form>
             )}
@@ -148,25 +150,25 @@ function Login() {
                     fontWeight: mode === m ? "bold" : "normal", marginBottom: "-1px",
                   }}
                 >
-                  {m === "login" ? "Entrar" : "Criar conta"}
+                  {m === "login" ? t("auth.login") : t("auth.createAccount")}
                 </button>
               ))}
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label style={{ color: "#888", fontSize: "12px" }}>Usuário</label>
+              <label style={{ color: "#888", fontSize: "12px" }}>{t("auth.username")}</label>
               <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required autoComplete="username" style={inputStyle} />
             </div>
 
             {isRegister && (
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label style={{ color: "#888", fontSize: "12px" }}>Email</label>
+                <label style={{ color: "#888", fontSize: "12px" }}>{t("auth.email")}</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" style={inputStyle} />
               </div>
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label style={{ color: "#888", fontSize: "12px" }}>Senha</label>
+              <label style={{ color: "#888", fontSize: "12px" }}>{t("auth.password")}</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete={isRegister ? "new-password" : "current-password"} style={inputStyle} />
             </div>
 
@@ -178,13 +180,13 @@ function Login() {
               style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "10px", fontSize: "14px", fontWeight: "bold", cursor: isLoading ? "default" : "pointer" }}
             >
               {isLoading
-                ? isRegister ? "Criando conta..." : "Entrando..."
-                : isRegister ? "Criar conta e entrar" : "Entrar"}
+                ? (isRegister ? t("auth.creating") : t("auth.logging"))
+                : (isRegister ? t("auth.createAndLogin") : t("auth.login"))}
             </button>
 
             <div style={{ display: "flex", alignItems: "center", gap: "8px", margin: "4px 0" }}>
               <div style={{ flex: 1, height: "1px", background: "#333" }} />
-              <span style={{ color: "#555", fontSize: "11px" }}>ou</span>
+              <span style={{ color: "#555", fontSize: "11px" }}>{t("auth.or")}</span>
               <div style={{ flex: 1, height: "1px", background: "#333" }} />
             </div>
 
@@ -200,7 +202,7 @@ function Login() {
                 <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
                 <path fill="none" d="M0 0h48v48H0z"/>
               </svg>
-              Entrar com Google
+              {t("auth.loginWithGoogle")}
             </button>
 
             {!isRegister && (
@@ -209,7 +211,7 @@ function Login() {
                 onClick={() => reset("forgot")}
                 style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "12px", padding: 0, textAlign: "center" }}
               >
-                Esqueceu sua senha?
+                {t("auth.forgotPassword")}
               </button>
             )}
           </form>

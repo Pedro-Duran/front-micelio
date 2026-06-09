@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import Cabecalho from "../Cabecalho";
 import { authFetch } from "../../utils/api";
+import { useTranslation } from "react-i18next";
 
 const ACCENT = "#4fc3f7";
 const ACCENT_DIM = "#1a6b8a";
@@ -14,8 +15,6 @@ const RETENTION_DIM   = "#2e5e35";
 const PALETTE = ["#4fc3f7", "#81c784", "#ffb74d", "#f06292", "#ba68c8", "#4db6ac", "#fff176", "#ff8a65"];
 
 const truncate = (str, n = 22) => (str?.length > n ? str.slice(0, n) + "…" : str ?? "");
-
-// ─── shared UI ───────────────────────────────────────────────────
 
 const ChartTooltip = ({ active, payload, label, unit }) => {
   if (!active || !payload?.length) return null;
@@ -30,7 +29,6 @@ const ChartTooltip = ({ active, payload, label, unit }) => {
   );
 };
 
-// KpiCard: label = título, sublabel = escopo (ex: "total" ou "média por post")
 const KpiCard = ({ label, sublabel, value, unit, muted }) => (
   <div style={{ background: "#242424", border: "1px solid #2a2a2a", borderRadius: "8px", padding: "18px 22px" }}>
     <div style={{ marginBottom: "10px" }}>
@@ -78,7 +76,7 @@ function SimpleBar({ data, dataKey, unit, height = 190, nameKey = "shortTitle", 
   );
 }
 
-function RankList({ items, labelKey, valueKey, unit, color, emptyText = "Sem dados ainda." }) {
+function RankList({ items, labelKey, valueKey, unit, color, emptyText }) {
   if (!items?.length) return <p style={{ color: "#3a3a3a", fontSize: "13px" }}>{emptyText}</p>;
   const max = Math.max(...items.map((x) => x[valueKey] || 0), 1);
   return (
@@ -107,10 +105,9 @@ function RankList({ items, labelKey, valueKey, unit, color, emptyText = "Sem dad
 
 const Divider = () => <div style={{ borderTop: "1px solid #232323", margin: "40px 0" }} />;
 
-// ─── main ────────────────────────────────────────────────────────
-
 function Dashboard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [summary, setSummary] = useState([]);
   const [coverConversion, setCoverConversion] = useState([]);
   const [subscriptions, setSubscriptions] = useState({ topSubscribers: [], topAuthors: [] });
@@ -136,8 +133,6 @@ function Dashboard() {
     });
   }, []);
 
-  // ── derived ──────────────────────────────────────────────────
-
   const subjects = useMemo(() => {
     const seen = new Set();
     summary.forEach((p) => { if (p.subject) seen.add(p.subject); });
@@ -154,7 +149,6 @@ function Dashboard() {
     ? Math.round(summary.reduce((a, d) => a + (d.avgDuration || 0), 0) / summary.length)
     : 0;
 
-  // Top 10 por visualizações
   const topByViews = useMemo(() =>
     [...summary]
       .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
@@ -163,7 +157,6 @@ function Dashboard() {
     [summary]
   );
 
-  // Top 10 por retenção (tempo médio de leitura)
   const topByRetention = useMemo(() =>
     [...summary]
       .filter((p) => (p.avgDuration || 0) > 0)
@@ -173,7 +166,6 @@ function Dashboard() {
     [summary]
   );
 
-  // Top 10 mais curtidos
   const topByLikes = useMemo(() =>
     [...summary]
       .filter((p) => (p.likeCount || 0) > 0)
@@ -183,7 +175,6 @@ function Dashboard() {
     [summary]
   );
 
-  // Médias por subject (para os gráficos comparativos)
   const subjectAggregates = useMemo(() => {
     const map = {};
     summary.forEach((p) => {
@@ -204,7 +195,6 @@ function Dashboard() {
     }));
   }, [summary]);
 
-  // Posts do subject ativo (para aba de detalhe)
   const subjectPosts = useMemo(() =>
     summary
       .filter((p) => p.subject === activeSubject)
@@ -222,14 +212,12 @@ function Dashboard() {
 
   const hasSubData = subscriptions.topSubscribers.length > 0 || subscriptions.topAuthors.length > 0;
 
-  // ── render ───────────────────────────────────────────────────
-
   if (loading) {
     return (
       <>
         <Cabecalho />
         <div style={{ background: "#1e1e1e", minHeight: "calc(100vh - 60px)", padding: "40px 60px" }}>
-          <p style={{ color: "#444" }}>Carregando...</p>
+          <p style={{ color: "#444" }}>{t("common.loading")}</p>
         </div>
       </>
     );
@@ -240,24 +228,22 @@ function Dashboard() {
       <Cabecalho />
       <div style={{ background: "#1e1e1e", minHeight: "calc(100vh - 60px)", padding: "40px 60px", color: "#e0e0e0" }}>
         <h1 style={{ fontSize: "18px", marginTop: 0, marginBottom: "32px", color: "#888", fontWeight: "600", letterSpacing: "0.5px" }}>
-          Analytics
+          {t("dashboard.analytics")}
         </h1>
 
         {summary.length === 0 ? (
-          <p style={{ color: "#444" }}>Nenhum dado de sessão registrado ainda.</p>
+          <p style={{ color: "#444" }}>{t("dashboard.noData")}</p>
         ) : (
           <>
-            {/* ── KPIs ────────────────────────────────────────────── */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "48px" }}>
-              <KpiCard label="Visualizações" sublabel="total acumulado" value={totalViews} />
-              <KpiCard label="Tempo médio de leitura" sublabel="média entre todos os posts" value={avgDuration} unit="s" />
-              <KpiCard label="Compartilhamentos" sublabel="total acumulado" value={totalShares} muted={totalShares === 0} />
+              <KpiCard label={t("dashboard.views")} sublabel={t("dashboard.totalAccumulated")} value={totalViews} />
+              <KpiCard label={t("dashboard.avgReadTime")} sublabel={t("dashboard.avgAllPosts")} value={avgDuration} unit="s" />
+              <KpiCard label={t("dashboard.shares")} sublabel={t("dashboard.totalAccumulated")} value={totalShares} muted={totalShares === 0} />
             </div>
 
-            {/* ── Posts: visualizações + retenção + likes ──────── */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "40px", marginBottom: "0" }}>
               <div>
-                <SectionTitle>Top posts — visualizações</SectionTitle>
+                <SectionTitle>{t("dashboard.topPostsViews")}</SectionTitle>
                 <SimpleBar
                   data={topByViews}
                   dataKey="viewCount"
@@ -266,9 +252,9 @@ function Dashboard() {
                 />
               </div>
               <div>
-                <SectionTitle>Retenção — tempo médio de leitura</SectionTitle>
+                <SectionTitle>{t("dashboard.retentionAvgRead")}</SectionTitle>
                 {topByRetention.length === 0 ? (
-                  <p style={{ color: "#444", fontSize: "13px", marginTop: "16px" }}>Sem dados de leitura ainda.</p>
+                  <p style={{ color: "#444", fontSize: "13px", marginTop: "16px" }}>{t("dashboard.noReadData")}</p>
                 ) : (
                   <SimpleBar
                     data={topByRetention}
@@ -282,9 +268,9 @@ function Dashboard() {
                 )}
               </div>
               <div>
-                <SectionTitle>Mais curtidos</SectionTitle>
+                <SectionTitle>{t("dashboard.mostLiked")}</SectionTitle>
                 {topByLikes.length === 0 ? (
-                  <p style={{ color: "#444", fontSize: "13px", marginTop: "16px" }}>Sem likes registrados ainda.</p>
+                  <p style={{ color: "#444", fontSize: "13px", marginTop: "16px" }}>{t("dashboard.noLikesData")}</p>
                 ) : (
                   <SimpleBar
                     data={topByLikes}
@@ -300,50 +286,30 @@ function Dashboard() {
 
             <Divider />
 
-            {/* ── Comparativo por subject ──────────────────────── */}
             {subjectAggregates.length > 1 && (
               <>
-                <SectionTitle>Comparativo por subject</SectionTitle>
+                <SectionTitle>{t("dashboard.compareBySubject")}</SectionTitle>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "40px", marginBottom: "0" }}>
                   <div>
-                    <MiniTitle>Tempo médio de leitura</MiniTitle>
-                    <SimpleBar
-                      data={subjectAggregates}
-                      dataKey="avgDuration"
-                      unit="s"
-                      height={180}
-                    />
+                    <MiniTitle>{t("dashboard.avgReadTimeLabel")}</MiniTitle>
+                    <SimpleBar data={subjectAggregates} dataKey="avgDuration" unit="s" height={180} />
                   </div>
                   <div>
-                    <MiniTitle>Compartilhamentos (média por post)</MiniTitle>
-                    <SimpleBar
-                      data={subjectAggregates}
-                      dataKey="avgShares"
-                      height={180}
-                      baseColor="#ffb74d"
-                      dimColor="#7a5520"
-                    />
+                    <MiniTitle>{t("dashboard.avgSharesLabel")}</MiniTitle>
+                    <SimpleBar data={subjectAggregates} dataKey="avgShares" height={180} baseColor="#ffb74d" dimColor="#7a5520" />
                   </div>
                   <div>
-                    <MiniTitle>Likes (média por post)</MiniTitle>
-                    <SimpleBar
-                      data={subjectAggregates}
-                      dataKey="avgLikes"
-                      height={180}
-                      baseColor="#f06292"
-                      dimColor="#7a2a45"
-                    />
+                    <MiniTitle>{t("dashboard.avgLikesLabel")}</MiniTitle>
+                    <SimpleBar data={subjectAggregates} dataKey="avgLikes" height={180} baseColor="#f06292" dimColor="#7a2a45" />
                   </div>
                 </div>
-
                 <Divider />
               </>
             )}
 
-            {/* ── Detalhe por subject (tabs) ──────────────────── */}
             {subjects.length > 0 && (
               <>
-                <SectionTitle>Detalhe por subject</SectionTitle>
+                <SectionTitle>{t("dashboard.detailBySubject")}</SectionTitle>
 
                 <div style={{ display: "flex", borderBottom: "1px solid #2a2a2a", marginBottom: "28px", overflowX: "auto" }}>
                   {subjects.map((s) => (
@@ -367,12 +333,12 @@ function Dashboard() {
                 </div>
 
                 {subjectPosts.length === 0 ? (
-                  <p style={{ color: "#444", fontSize: "13px" }}>Nenhum post com dados para este subject.</p>
+                  <p style={{ color: "#444", fontSize: "13px" }}>{t("dashboard.noPostsForSubject")}</p>
                 ) : (
                   <>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "40px", marginBottom: "32px" }}>
                       <div>
-                        <MiniTitle>Visualizações por post</MiniTitle>
+                        <MiniTitle>{t("dashboard.viewsByPost")}</MiniTitle>
                         <SimpleBar
                           data={subjectPosts}
                           dataKey="viewCount"
@@ -381,7 +347,7 @@ function Dashboard() {
                         />
                       </div>
                       <div>
-                        <MiniTitle>Tempo médio de leitura por post</MiniTitle>
+                        <MiniTitle>{t("dashboard.readTimeByPost")}</MiniTitle>
                         <SimpleBar
                           data={subjectPosts}
                           dataKey="avgDuration"
@@ -396,7 +362,7 @@ function Dashboard() {
 
                     {subjectPosts.some((p) => p.likeCount > 0) && (
                       <div style={{ marginBottom: "32px" }}>
-                        <MiniTitle>Likes por post</MiniTitle>
+                        <MiniTitle>{t("dashboard.likesByPost")}</MiniTitle>
                         <SimpleBar
                           data={subjectPosts}
                           dataKey="likeCount"
@@ -410,7 +376,7 @@ function Dashboard() {
 
                     {subjectCovers.length > 0 && (
                       <div>
-                        <MiniTitle>Covers com mais conversões</MiniTitle>
+                        <MiniTitle>{t("dashboard.coversConversion")}</MiniTitle>
                         <div style={{ display: "flex", gap: "12px", overflowX: "auto", paddingBottom: "4px" }}>
                           {subjectCovers.map((cover, i) => (
                             <div key={i} style={{ flexShrink: 0, width: "150px", borderRadius: "6px", overflow: "hidden", border: "1px solid #2a2a2a", background: "#242424" }}>
@@ -418,7 +384,7 @@ function Dashboard() {
                                 <img src={cover.coverImageUrl} alt="" style={{ width: "100%", height: "96px", objectFit: "cover", display: "block" }} />
                               ) : (
                                 <div style={{ width: "100%", height: "96px", background: "#2a2a2a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                  <span style={{ color: "#3a3a3a", fontSize: "11px" }}>sem capa</span>
+                                  <span style={{ color: "#3a3a3a", fontSize: "11px" }}>{t("dashboard.noCover")}</span>
                                 </div>
                               )}
                               <div style={{ padding: "8px 10px" }}>
@@ -427,11 +393,11 @@ function Dashboard() {
                                 </p>
                                 <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
                                   <span style={{ color: ACCENT, fontSize: "16px", fontWeight: "700" }}>{cover.clickCount ?? 0}</span>
-                                  <span style={{ color: "#555", fontSize: "11px" }}>cliques</span>
+                                  <span style={{ color: "#555", fontSize: "11px" }}>{t("dashboard.clicks")}</span>
                                 </div>
                                 {cover.viewCount > 0 && (
                                   <p style={{ margin: "2px 0 0", color: "#444", fontSize: "11px" }}>
-                                    CTR: {((cover.clickCount / cover.viewCount) * 100).toFixed(1)}%
+                                    {t("dashboard.ctr", { value: ((cover.clickCount / cover.viewCount) * 100).toFixed(1) })}
                                   </p>
                                 )}
                               </div>
@@ -447,22 +413,21 @@ function Dashboard() {
               </>
             )}
 
-            {/* ── Compartilhamentos ────────────────────────────── */}
             <div style={{ marginBottom: "0" }}>
-              <SectionTitle>Compartilhamentos</SectionTitle>
+              <SectionTitle>{t("dashboard.sharesSection")}</SectionTitle>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "48px" }}>
                 <div>
-                  <MiniTitle>Top compartilhadores</MiniTitle>
+                  <MiniTitle>{t("dashboard.topSharers")}</MiniTitle>
                   <RankList
                     items={shareLeaderboard.slice(0, 8)}
                     labelKey="username"
                     valueKey="shareCount"
                     color="#81c784"
-                    emptyText="Nenhum compartilhamento registrado ainda."
+                    emptyText={t("dashboard.noShares")}
                   />
                 </div>
                 <div>
-                  <MiniTitle>Shares por subject (total)</MiniTitle>
+                  <MiniTitle>{t("dashboard.sharesBySubject")}</MiniTitle>
                   {subjectAggregates.some((s) => s.avgShares > 0) ? (
                     <SimpleBar
                       data={subjectAggregates}
@@ -472,26 +437,25 @@ function Dashboard() {
                       dimColor="#7a5520"
                     />
                   ) : (
-                    <p style={{ color: "#3a3a3a", fontSize: "13px" }}>Nenhum compartilhamento registrado ainda.</p>
+                    <p style={{ color: "#3a3a3a", fontSize: "13px" }}>{t("dashboard.noShares")}</p>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* ── Inscrições ───────────────────────────────────── */}
             {hasSubData && (
               <>
                 <Divider />
                 <div>
-                  <SectionTitle>Inscrições em stubs</SectionTitle>
+                  <SectionTitle>{t("dashboard.subscriptions")}</SectionTitle>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "48px" }}>
                     <div>
-                      <MiniTitle>Usuários que mais se inscrevem</MiniTitle>
-                      <RankList items={subscriptions.topSubscribers.slice(0, 8)} labelKey="username" valueKey="count" color="#ffb74d" />
+                      <MiniTitle>{t("dashboard.topSubscribers")}</MiniTitle>
+                      <RankList items={subscriptions.topSubscribers.slice(0, 8)} labelKey="username" valueKey="count" color="#ffb74d" emptyText={t("dashboard.noDataYet")} />
                     </div>
                     <div>
-                      <MiniTitle>Autores com mais inscrições</MiniTitle>
-                      <RankList items={subscriptions.topAuthors.slice(0, 8)} labelKey="authorUsername" valueKey="subscriptionCount" color="#ba68c8" />
+                      <MiniTitle>{t("dashboard.topAuthors")}</MiniTitle>
+                      <RankList items={subscriptions.topAuthors.slice(0, 8)} labelKey="authorUsername" valueKey="subscriptionCount" color="#ba68c8" emptyText={t("dashboard.noDataYet")} />
                     </div>
                   </div>
                 </div>

@@ -1,23 +1,34 @@
 import React, { useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
 
 const Cabecalho = () => {
   const { isLoggedIn, username, logout } = useAuth();
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === "/";
   const [search, setSearch] = useState("");
   const [showCategories, setShowCategories] = useState(false);
   const [activeCategory, setActiveCategory] = useState("usuarios");
+  const [lang, setLang] = useState(i18n.language);
   const inputRef = useRef(null);
 
   const handleLogout = () => { logout(); navigate("/login"); };
 
+  const toggleLang = () => {
+    const next = lang === "pt-BR" ? "en" : "pt-BR";
+    i18n.changeLanguage(next);
+    localStorage.setItem("lang", next);
+    setLang(next);
+  };
+
   const categories = [
-    { type: "usuarios", label: "Usuários" },
-    { type: "posts", label: "Posts" },
-    { type: "subjects", label: "Subjects" },
+    { type: "usuarios", label: t("nav.users") },
+    { type: "posts", label: t("nav.posts") },
+    { type: "subjects", label: t("nav.subjects") },
   ];
 
   const handleSearch = (e) => {
@@ -49,14 +60,14 @@ const Cabecalho = () => {
       }}
     >
       <Link to="/" style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#fff", textDecoration: "none" }}>
-        Puredo
+        {t("nav.brand")}
       </Link>
 
       <ul style={{ display: "flex", listStyle: "none", gap: "15px", margin: 0, padding: 0, alignItems: "center" }}>
-        {isLoggedIn && <li><Link to="/novoPost" style={linkStyle}>Novo post</Link></li>}
-        {isLoggedIn && <li><Link to="/feed" style={linkStyle}>Feed</Link></li>}
-        {!isHome && <li><Link to="/" style={linkStyle}>Posts</Link></li>}
-        <li><Link to="/dashboard" style={linkStyle}>Analytics</Link></li>
+        {isLoggedIn && <li><Link to="/novoPost" style={linkStyle}>{t("nav.newPost")}</Link></li>}
+        {isLoggedIn && <li><Link to="/feed" style={linkStyle}>{t("nav.feed")}</Link></li>}
+        {!isHome && <li><Link to="/" style={linkStyle}>{t("nav.posts")}</Link></li>}
+        <li><Link to="/dashboard" style={linkStyle}>{t("nav.analytics")}</Link></li>
 
         {/* Search */}
         <li style={{ position: "relative" }}>
@@ -77,7 +88,7 @@ const Cabecalho = () => {
               onChange={(e) => setSearch(e.target.value)}
               onFocus={() => setShowCategories(true)}
               onBlur={() => setTimeout(() => setShowCategories(false), 150)}
-              placeholder="Buscar..."
+              placeholder={t("nav.searchPlaceholder")}
               style={{
                 background: "transparent",
                 border: "none",
@@ -145,6 +156,27 @@ const Cabecalho = () => {
           )}
         </li>
 
+        {/* Language toggle */}
+        <li>
+          <button
+            onClick={toggleLang}
+            style={{
+              background: "none",
+              border: "1px solid #333",
+              borderRadius: "4px",
+              color: "#666",
+              cursor: "pointer",
+              padding: "3px 8px",
+              fontSize: "11px",
+              letterSpacing: "0.04em",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "#aaa"; e.currentTarget.style.borderColor = "#555"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }}
+          >
+            {lang === "pt-BR" ? "EN" : "PT"}
+          </button>
+        </li>
+
         {isLoggedIn ? (
           <>
             <li>
@@ -162,12 +194,12 @@ const Cabecalho = () => {
                 onClick={handleLogout}
                 style={{ background: "none", border: "1px solid #444", borderRadius: "4px", color: "#888", cursor: "pointer", padding: "4px 12px", fontSize: "13px" }}
               >
-                Sair
+                {t("nav.logout")}
               </button>
             </li>
           </>
         ) : (
-          <li><Link to="/login" style={linkStyle}>Login</Link></li>
+          <li><Link to="/login" style={linkStyle}>{t("nav.login")}</Link></li>
         )}
       </ul>
     </nav>

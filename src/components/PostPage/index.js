@@ -15,6 +15,7 @@ import StubModal from "../StubModal";
 import Avatar from "../Avatar";
 import WikilinkSubjectsModal from "../WikilinkSubjectsModal";
 import ShareButton from "../ShareButton";
+import { useTranslation } from "react-i18next";
 
 const TL_SPEEDS = { Devagar: 1500, Normal: 800, "Rápido": 300 };
 
@@ -24,6 +25,8 @@ function PostPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isLoggedIn, username: currentUsername } = useAuth();
+
+  const { t } = useTranslation();
 
   const fromPost = location.state?.fromPost ?? null;
 
@@ -264,7 +267,7 @@ function PostPage() {
   const imageUploadCommand = {
     name: "imageUpload",
     keyCommand: "imageUpload",
-    buttonProps: { "aria-label": "Inserir imagem", title: "Inserir imagem" },
+    buttonProps: { "aria-label": t("postPage.insertImage"), title: t("postPage.insertImage") },
     icon: (
       <svg viewBox="0 0 16 16" width="12px" height="12px" fill="currentColor">
         <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
@@ -289,7 +292,7 @@ function PostPage() {
       const url = data.url;
       editorApiRef.current?.replaceSelection(`![${file.name}](${url})`);
     } catch {
-      alert("Erro ao enviar imagem.");
+      alert(t("postPage.imageError"));
     } finally {
       e.target.value = "";
     }
@@ -307,7 +310,7 @@ function PostPage() {
       const data = await res.json();
       setPost((prev) => ({ ...prev, coverImageUrl: data.coverImageUrl }));
     } catch {
-      alert("Erro ao enviar capa.");
+      alert(t("postPage.coverError"));
     } finally {
       setUploadingCover(false);
       e.target.value = "";
@@ -416,7 +419,7 @@ function PostPage() {
       setEditMode(false);
     } catch (error) {
       console.error("Erro ao salvar:", error);
-      alert("Erro ao salvar o post.");
+      alert(t("postPage.savePostError"));
     } finally {
       setIsSaving(false);
     }
@@ -461,14 +464,14 @@ function PostPage() {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Deletar "${post.title}"? Essa ação não pode ser desfeita.`)) return;
+    if (!window.confirm(t("postPage.deleteConfirm", { title: post.title }))) return;
     try {
       const response = await authFetch(`/api/posts/deletePost?id=${postId}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Falha ao deletar");
       navigate("/");
     } catch (error) {
       console.error("Erro ao deletar:", error);
-      alert("Erro ao deletar o post.");
+      alert(t("postPage.deletePostError"));
     }
   };
 
@@ -478,7 +481,7 @@ function PostPage() {
         <Cabecalho />
         <div style={{ display: "flex", background: "#1e1e1e", minHeight: "calc(100vh - 60px)" }}>
           <SubjectsSidebar />
-          <div style={{ color: "#aaa", padding: "40px" }}>Carregando...</div>
+          <div style={{ color: "#aaa", padding: "40px" }}>{t("postPage.loading")}</div>
         </div>
       </>
     );
@@ -502,7 +505,7 @@ function PostPage() {
           wikilinks={pendingWikilinks}
           defaultSubjects={editedSubjects}
           allSubjects={allSubjects}
-          confirmLabel="Confirmar e salvar"
+          confirmLabel={t("postPage.confirmSave")}
           onConfirm={(assignments) => {
             const assignmentMap = Object.fromEntries(
               assignments.map(({ title, subjects }) => [title.toLowerCase(), subjects])
@@ -536,7 +539,7 @@ function PostPage() {
       {showSubjectModal && (
         <div onClick={() => setShowSubjectModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.72)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: "#242424", border: "1px solid #333", borderRadius: "8px", width: "380px", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
-            <h3 style={{ margin: 0, color: "#e0e0e0", fontSize: "15px" }}>Categorias do post</h3>
+            <h3 style={{ margin: 0, color: "#e0e0e0", fontSize: "15px" }}>{t("postPage.postCategories")}</h3>
             {allSubjects.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                 {allSubjects.map((s) => {
@@ -553,12 +556,12 @@ function PostPage() {
             <div style={{ display: "flex", gap: "8px" }}>
               <input value={newSubjectInput} onChange={(e) => setNewSubjectInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const s = newSubjectInput.trim(); if (!s) return; if (!editedSubjects.includes(s)) setEditedSubjects((p) => [...p, s]); if (!allSubjects.includes(s)) setAllSubjects((p) => [...p, s]); setNewSubjectInput(""); } }}
-                placeholder="Nova categoria..." style={{ flex: 1, background: "#1e1e1e", border: "1px solid #444", borderRadius: "4px", padding: "6px 10px", color: "#e0e0e0", fontSize: "13px", outline: "none" }} />
+                placeholder={t("postPage.newCategory")} style={{ flex: 1, background: "#1e1e1e", border: "1px solid #444", borderRadius: "4px", padding: "6px 10px", color: "#e0e0e0", fontSize: "13px", outline: "none" }} />
               <button onClick={() => { const s = newSubjectInput.trim(); if (!s) return; if (!editedSubjects.includes(s)) setEditedSubjects((p) => [...p, s]); if (!allSubjects.includes(s)) setAllSubjects((p) => [...p, s]); setNewSubjectInput(""); }}
                 style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "6px 14px", cursor: "pointer", fontSize: "13px", fontWeight: "bold" }}>+</button>
             </div>
             <button onClick={() => setShowSubjectModal(false)} style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "9px", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}>
-              Confirmar
+              {t("common.confirm")}
             </button>
           </div>
         </div>
@@ -587,7 +590,7 @@ function PostPage() {
                 ))}
                 <button type="button" onClick={() => setShowSubjectModal(true)}
                   style={{ background: "none", border: "1px dashed #444", borderRadius: "20px", color: "#555", padding: "3px 10px", fontSize: "12px", cursor: "pointer" }}>
-                  + subject
+                  {t("postPage.addSubject")}
                 </button>
               </div>
 
@@ -608,10 +611,10 @@ function PostPage() {
               </div>
               <div style={{ display: "flex", gap: "12px" }}>
                 <button onClick={handleSave} disabled={isSaving} style={{ padding: "8px 20px", background: "#4caf50", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}>
-                  {isSaving ? "Salvando..." : "Salvar"}
+                  {isSaving ? t("postPage.saving") : t("common.save")}
                 </button>
                 <button onClick={() => setEditMode(false)} style={{ padding: "8px 20px", background: "#555", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}>
-                  Cancelar
+                  {t("common.cancel")}
                 </button>
               </div>
             </>
@@ -638,10 +641,10 @@ function PostPage() {
                   {isLoggedIn && (
                     <button
                       onClick={() => coverInputRef.current?.click()}
-                      title="Alterar capa"
+                      title={t("postPage.changeCover")}
                       style={{ position: "absolute", bottom: "10px", right: "14px", background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "4px", color: "#ccc", cursor: "pointer", fontSize: "11px", padding: "4px 10px" }}
                     >
-                      {uploadingCover ? "Enviando…" : "Alterar capa"}
+                      {uploadingCover ? t("userProfile.uploading") : t("postPage.changeCover")}
                     </button>
                   )}
                 </div>
@@ -655,7 +658,7 @@ function PostPage() {
                     disabled={uploadingCover}
                     style={{ background: "none", border: "1px dashed #333", borderRadius: "4px", color: "#555", cursor: "pointer", fontSize: "11px", padding: "6px 14px" }}
                   >
-                    {uploadingCover ? "Enviando…" : "+ Adicionar capa"}
+                    {uploadingCover ? t("userProfile.uploading") : t("postPage.addCover")}
                   </button>
                 </div>
               )}
@@ -679,10 +682,10 @@ function PostPage() {
                       onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; e.currentTarget.style.borderColor = "#4fc3f7"; }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }}
                     >
-                      ref post
+                      {t("postPage.refPost")}
                     </button>
                   )}
-                  <button onClick={openTimeline} title="Ver pensamento sendo construído" style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>🎬</button>
+                  <button onClick={openTimeline} title={t("postPage.viewTimeline")} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>🎬</button>
                   {isLoggedIn && (
                     <>
                       <button onClick={() => setEditMode(true)} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>✏️</button>
@@ -694,10 +697,10 @@ function PostPage() {
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "24px" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                   <p style={{ color: "#888", fontSize: "13px", margin: 0 }}>
-                    Autor: <span style={{ color: "#aaa" }}>{post.author}</span>
+                    {t("postPage.author")} <span style={{ color: "#aaa" }}>{post.author}</span>
                   </p>
                   <p style={{ color: "#888", fontSize: "13px", margin: 0, display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" }}>
-                    <span>Assunto:</span>
+                    <span>{t("postPage.subject")}</span>
                     {(post.subjects?.length > 0 ? post.subjects : [post.subject]).filter(Boolean).map((s) => (
                       <Link
                         key={s}
@@ -713,7 +716,7 @@ function PostPage() {
                 </div>
                 <button
                   onClick={handleLike}
-                  title={isLoggedIn ? (likedByMe ? "Descurtir" : "Curtir") : "Faça login para curtir"}
+                  title={isLoggedIn ? (likedByMe ? t("postPage.unlike") : t("postPage.like")) : t("postPage.loginToLike")}
                   style={{
                     background: "none",
                     border: `1px solid ${likedByMe ? "#c2185b" : "#333"}`,
@@ -808,7 +811,7 @@ function PostPage() {
                 </button>
               )}
               <h4 style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", margin: 0 }}>
-                Graph local
+                {t("postPage.localGraph")}
               </h4>
               <ForceGraph2D
                 graphData={localGraphData}
@@ -856,7 +859,7 @@ function PostPage() {
               {localGraphData.nodes.filter((n) => n.id !== postId).length > 0 && (
                 <>
                   <h4 style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", margin: "8px 0 4px" }}>
-                    Posts linkados
+                    {t("postPage.linkedPosts")}
                   </h4>
                   <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "2px" }}>
                     {localGraphData.nodes
@@ -897,7 +900,7 @@ function PostPage() {
               {backlinks.length > 0 && (
                 <>
                   <h4 style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", margin: "12px 0 6px" }}>
-                    Referenciado por
+                    {t("postPage.referencedBy")}
                   </h4>
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                     {backlinks.map((node) => (
@@ -933,13 +936,13 @@ function PostPage() {
               {/* Header da timeline */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <h4 style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", margin: 0 }}>
-                  Timeline
+                  {t("postPage.timeline")}
                 </h4>
                 <button
                   onClick={() => { setSidebarMode("graph"); setTlRunning(false); }}
                   style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "11px" }}
                 >
-                  ← grafo
+                  {t("postPage.backToGraph")}
                 </button>
               </div>
 
@@ -991,7 +994,7 @@ function PostPage() {
                 >
                   {tlRunning ? "⏸" : "▶"}
                 </button>
-                {Object.keys(TL_SPEEDS).map((s) => (
+                {Object.entries({ Devagar: "postPage.slow", Normal: "postPage.normal", "Rápido": "postPage.fast" }).map(([s, tKey]) => (
                   <button
                     key={s}
                     onClick={() => setTlSpeed(s)}

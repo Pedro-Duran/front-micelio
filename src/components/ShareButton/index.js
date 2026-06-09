@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { registerEvent } from "../../utils/analytics";
+import { useTranslation } from "react-i18next";
 
 function ShareButton({ postId, username }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -58,7 +60,7 @@ function ShareButton({ postId, username }) {
           if (!copied) { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }
         }}
       >
-        {copied ? "Copiado!" : "Compartilhar"}
+        {copied ? t("share.copied") : t("share.share")}
       </button>
 
       {open && (
@@ -79,43 +81,27 @@ function ShareButton({ postId, username }) {
           <button
             onClick={handleCopy}
             style={{
-              width: "100%",
-              background: "none",
-              border: "none",
-              color: "#ccc",
-              cursor: "pointer",
-              fontSize: "13px",
-              padding: "10px 14px",
-              textAlign: "left",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
+              width: "100%", background: "none", border: "none", color: "#ccc",
+              cursor: "pointer", fontSize: "13px", padding: "10px 14px",
+              textAlign: "left", display: "flex", alignItems: "center", gap: "8px",
             }}
             onMouseEnter={(e) => { e.currentTarget.style.background = "#2e2e2e"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
           >
-            <span style={{ fontSize: "14px" }}>🔗</span> Copiar link
+            <span style={{ fontSize: "14px" }}>🔗</span> {t("share.copyLink")}
           </button>
           <div style={{ height: "1px", background: "#2a2a2a" }} />
           <button
             onClick={handleWhatsApp}
             style={{
-              width: "100%",
-              background: "none",
-              border: "none",
-              color: "#ccc",
-              cursor: "pointer",
-              fontSize: "13px",
-              padding: "10px 14px",
-              textAlign: "left",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
+              width: "100%", background: "none", border: "none", color: "#ccc",
+              cursor: "pointer", fontSize: "13px", padding: "10px 14px",
+              textAlign: "left", display: "flex", alignItems: "center", gap: "8px",
             }}
             onMouseEnter={(e) => { e.currentTarget.style.background = "#2e2e2e"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
           >
-            <span style={{ fontSize: "14px" }}>💬</span> WhatsApp
+            <span style={{ fontSize: "14px" }}>💬</span> {t("share.whatsapp")}
           </button>
         </div>
       )}

@@ -6,11 +6,13 @@ import SubjectCard from "../SubjectCard";
 import Avatar from "../Avatar";
 import { authFetch, authFetchMultipart, parsePage } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 function UserProfile() {
   const { username } = useParams();
   const navigate = useNavigate();
   const { isLoggedIn, username: currentUser } = useAuth();
+  const { t } = useTranslation();
   const isOwnProfile = currentUser === username;
   const fileInputRef = useRef(null);
 
@@ -24,12 +26,11 @@ function UserProfile() {
   const [following, setFollowing] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
-  const [socialModal, setSocialModal] = useState(null); // "followers" | "following" | null
+  const [socialModal, setSocialModal] = useState(null);
 
   const [groupedSubjects, setGroupedSubjects] = useState({});
   const [loading, setLoading] = useState(true);
 
-  // Fetch user info (id + avatarUrl) via search
   useEffect(() => {
     fetch(`/api/users/search?username=${encodeURIComponent(username)}`)
       .then((r) => (r.ok ? r.json() : []))
@@ -44,19 +45,15 @@ function UserProfile() {
       });
   }, [username]);
 
-  // Fetch social stats
   useEffect(() => {
     const followersP = fetch(`/api/users/${username}/followers`)
-      .then((r) => (r.ok ? r.json() : []))
-      .catch(() => []);
+      .then((r) => (r.ok ? r.json() : [])).catch(() => []);
     const followingP = fetch(`/api/users/${username}/following`)
-      .then((r) => (r.ok ? r.json() : []))
-      .catch(() => []);
+      .then((r) => (r.ok ? r.json() : [])).catch(() => []);
     const isFollowingP =
       isLoggedIn && !isOwnProfile
         ? authFetch(`/api/users/${username}/isFollowing`)
-            .then((r) => (r.ok ? r.json() : false))
-            .catch(() => false)
+            .then((r) => (r.ok ? r.json() : false)).catch(() => false)
         : Promise.resolve(false);
 
     Promise.all([followersP, followingP, isFollowingP]).then(([f, fg, isF]) => {
@@ -66,8 +63,6 @@ function UserProfile() {
     });
   }, [username, isLoggedIn, isOwnProfile]);
 
-  // Fetch all posts and group by subject.
-  // verPosts is used as a supplement to capture stubs that search may exclude.
   useEffect(() => {
     setLoading(true);
     Promise.all([
@@ -79,7 +74,6 @@ function UserProfile() {
       const searchPosts = parsePage(searchRaw).content;
       const allPosts = parsePage(verRaw).content;
 
-      // Stubs from verPosts that belong to this user and aren't already in search results
       const searchIds = new Set(searchPosts.map((p) => p.id));
       const missingStubs = allPosts.filter((p) => {
         const author = p.authorUsername || p.author?.username;
@@ -89,17 +83,17 @@ function UserProfile() {
       const posts = [...searchPosts, ...missingStubs];
 
       const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
-        ? p.subjects : (p.subject ? [p.subject] : ["Sem categoria"]);
+        ? p.subjects : (p.subject ? [p.subject] : [t("sidebar.noCategory")]);
 
       const groups = {};
       posts.forEach((p) => {
         const subjs = getSubjs(p);
         const node = {
           id: p.id,
-          title: p.title || "Sem título",
+          title: p.title || t("sidebar.noCategory"),
           content: p.content || "",
           subjects: subjs,
-          subject: subjs[0] || "Sem categoria",
+          subject: subjs[0] || t("sidebar.noCategory"),
           isStub: p.isStub || false,
           viewCount: 0,
           coverImageUrl: p.coverImageUrl || null,
@@ -124,7 +118,7 @@ function UserProfile() {
       setGroupedSubjects(groups);
       setLoading(false);
     });
-  }, [username]);
+  }, [username]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFollow = async () => {
     setFollowLoading(true);
@@ -135,8 +129,7 @@ function UserProfile() {
       if (!res.ok) throw new Error();
       setIsFollowing((prev) => !prev);
       const updated = await fetch(`/api/users/${username}/followers`)
-        .then((r) => (r.ok ? r.json() : followers))
-        .catch(() => followers);
+        .then((r) => (r.ok ? r.json() : followers)).catch(() => followers);
       setFollowers(updated);
     } catch {
       // ignore
@@ -157,7 +150,7 @@ function UserProfile() {
       const data = await res.json();
       setAvatarUrl(data.avatarUrl);
     } catch {
-      alert("Erro ao enviar foto de perfil.");
+      alert(t("userProfile.photoError"));
     } finally {
       setUploadingAvatar(false);
       e.target.value = "";
@@ -176,30 +169,24 @@ function UserProfile() {
               onClick={(e) => { e.stopPropagation(); setAvatarLightbox(false); fileInputRef.current?.click(); }}
               style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "4px", color: "#ccc", cursor: "pointer", fontSize: "13px", padding: "7px 18px" }}
             >
-              {uploadingAvatar ? "Enviando…" : "Alterar foto"}
+              {uploadingAvatar ? t("userProfile.uploading") : t("userProfile.changePhoto")}
             </button>
           )}
         </div>
       )}
       {socialModal && (
-        <div
-          onClick={() => setSocialModal(null)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center" }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{ background: "#242424", border: "1px solid #333", borderRadius: "8px", width: "320px", maxHeight: "480px", display: "flex", flexDirection: "column" }}
-          >
+        <div onClick={() => setSocialModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#242424", border: "1px solid #333", borderRadius: "8px", width: "320px", maxHeight: "480px", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid #2a2a2a" }}>
               <span style={{ color: "#e0e0e0", fontSize: "14px", fontWeight: "600" }}>
-                {socialModal === "followers" ? "Seguidores" : "Seguindo"}
+                {socialModal === "followers" ? t("userProfile.followers") : t("userProfile.following")}
               </span>
               <button onClick={() => setSocialModal(null)} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "16px", lineHeight: 1 }}>✕</button>
             </div>
             <div style={{ overflowY: "auto", padding: "6px 0" }}>
               {socialList.length === 0 ? (
                 <p style={{ color: "#555", fontSize: "13px", padding: "16px 20px", margin: 0 }}>
-                  {socialModal === "followers" ? "Nenhum seguidor ainda." : "Não está seguindo ninguém."}
+                  {socialModal === "followers" ? t("userProfile.noFollowers") : t("userProfile.notFollowing")}
                 </p>
               ) : socialList.map((user) => (
                 <button
@@ -222,11 +209,8 @@ function UserProfile() {
         <SubjectsSidebar />
         <div style={{ flex: 1, padding: "32px 32px", overflowY: "auto" }}>
 
-          {/* Profile header */}
           <div style={{ marginBottom: "32px", paddingBottom: "24px", borderBottom: "1px solid #2a2a2a", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-
-              {/* Avatar */}
               <div
                 style={{ position: "relative", cursor: "pointer" }}
                 onMouseEnter={() => setAvatarHover(true)}
@@ -239,19 +223,11 @@ function UserProfile() {
                     🔍
                   </div>
                 )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  style={{ display: "none" }}
-                  onChange={handleAvatarChange}
-                />
+                <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: "none" }} onChange={handleAvatarChange} />
               </div>
 
               <div>
-                <h2 style={{ color: "#e0e0e0", margin: "0 0 6px", fontSize: "22px", fontWeight: "600" }}>
-                  {username}
-                </h2>
+                <h2 style={{ color: "#e0e0e0", margin: "0 0 6px", fontSize: "22px", fontWeight: "600" }}>{username}</h2>
                 <p style={{ color: "#555", fontSize: "13px", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
                   <button
                     onClick={() => setSocialModal("followers")}
@@ -259,7 +235,7 @@ function UserProfile() {
                     onMouseEnter={(e) => { e.currentTarget.style.color = "#ccc"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; }}
                   >
-                    {followers.length} seguidor{followers.length !== 1 ? "es" : ""}
+                    {t("userProfile.follower", { count: followers.length })}
                   </button>
                   <span>·</span>
                   <button
@@ -268,7 +244,7 @@ function UserProfile() {
                     onMouseEnter={(e) => { e.currentTarget.style.color = "#ccc"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; }}
                   >
-                    {following.length} seguindo
+                    {following.length} {t("userProfile.followingCount")}
                   </button>
                 </p>
               </div>
@@ -292,16 +268,15 @@ function UserProfile() {
                   transition: "background 0.15s",
                 }}
               >
-                {followLoading ? "..." : isFollowing ? "Seguindo" : "Seguir"}
+                {followLoading ? "..." : isFollowing ? t("userProfile.unfollow") : t("userProfile.follow")}
               </button>
             )}
           </div>
 
-          {/* Subject cards */}
           {loading ? (
-            <p style={{ color: "#444", fontSize: "13px" }}>Carregando...</p>
+            <p style={{ color: "#444", fontSize: "13px" }}>{t("common.loading")}</p>
           ) : Object.keys(groupedSubjects).length === 0 ? (
-            <p style={{ color: "#444", fontSize: "14px" }}>Nenhum post ainda.</p>
+            <p style={{ color: "#444", fontSize: "14px" }}>{t("userProfile.noPosts")}</p>
           ) : (
             <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", alignContent: "flex-start" }}>
               {Object.entries(groupedSubjects).map(([subject, { nodes, links }]) => (

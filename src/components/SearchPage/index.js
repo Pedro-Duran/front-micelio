@@ -3,10 +3,12 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
 import { parsePage } from "../../utils/api";
+import { useTranslation } from "react-i18next";
 
 function SearchPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const q = searchParams.get("q") || "";
   const type = searchParams.get("type") || "posts";
 
@@ -27,7 +29,6 @@ function SearchPage() {
           setLoading(false);
         });
     } else {
-      // subjects: filter unique subjects from all posts
       fetch("/api/posts/verPosts?page=0&size=1000")
         .then((r) => (r.ok ? r.json() : {}))
         .catch(() => ({}))
@@ -45,7 +46,12 @@ function SearchPage() {
     }
   }, [q, type]);
 
-  const switchType = (t) => navigate(`/search?q=${encodeURIComponent(q)}&type=${t}`);
+  const switchType = (newType) => navigate(`/search?q=${encodeURIComponent(q)}&type=${newType}`);
+
+  const tabs = [
+    { key: "posts", label: t("search.posts") },
+    { key: "subjects", label: t("search.subjects") },
+  ];
 
   return (
     <>
@@ -54,12 +60,8 @@ function SearchPage() {
         <SubjectsSidebar />
         <div style={{ flex: 1, padding: "32px 40px", overflowY: "auto" }}>
 
-          {/* Tabs */}
           <div style={{ display: "flex", borderBottom: "1px solid #2a2a2a", marginBottom: "24px" }}>
-            {[
-              { key: "posts", label: "Posts" },
-              { key: "subjects", label: "Subjects" },
-            ].map(({ key, label }) => (
+            {tabs.map(({ key, label }) => (
               <button
                 key={key}
                 onClick={() => switchType(key)}
@@ -77,20 +79,18 @@ function SearchPage() {
             ))}
           </div>
 
-          {/* Query label */}
           {q && (
             <p style={{ color: "#555", fontSize: "12px", marginBottom: "16px" }}>
-              Resultados para <span style={{ color: "#888" }}>"{q}"</span>
+              {t("search.resultsFor")} <span style={{ color: "#888" }}>"{q}"</span>
             </p>
           )}
 
-          {loading && <p style={{ color: "#444", fontSize: "13px" }}>Buscando...</p>}
+          {loading && <p style={{ color: "#444", fontSize: "13px" }}>{t("search.searching")}</p>}
 
           {!loading && results.length === 0 && q && (
-            <p style={{ color: "#444", fontSize: "13px" }}>Nenhum resultado encontrado.</p>
+            <p style={{ color: "#444", fontSize: "13px" }}>{t("search.noResults")}</p>
           )}
 
-          {/* Posts results */}
           {type === "posts" && !loading && (
             <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "2px" }}>
               {results.map((post) => (
@@ -112,7 +112,6 @@ function SearchPage() {
             </ul>
           )}
 
-          {/* Subjects results */}
           {type === "subjects" && !loading && (
             <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "2px" }}>
               {results.map(({ name }) => (

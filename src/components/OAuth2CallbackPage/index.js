@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 function parseJwt(token) {
   try {
@@ -14,6 +15,7 @@ function OAuth2CallbackPage() {
   const [searchParams] = useSearchParams();
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const token = searchParams.get("token");
@@ -33,7 +35,7 @@ function OAuth2CallbackPage() {
 
   return (
     <div style={{ background: "#1e1e1e", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <p style={{ color: "#888", fontSize: "14px" }}>Autenticando...</p>
+      <p style={{ color: "#888", fontSize: "14px" }}>{t("auth.authenticating")}</p>
     </div>
   );
 }
