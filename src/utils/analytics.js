@@ -9,7 +9,7 @@ const getSessionId = () => {
 
 const MIN_VIEW_DURATION_S = 10;
 
-export const registerEvent = ({ postId, eventType, duration }) => {
+export const registerEvent = ({ postId, eventType, duration, utmSource, referredBy, username }) => {
   if (eventType === "VIEW" && (duration ?? 0) < MIN_VIEW_DURATION_S) return;
 
   const body = JSON.stringify({
@@ -17,6 +17,9 @@ export const registerEvent = ({ postId, eventType, duration }) => {
     eventType,
     sessionId: getSessionId(),
     duration: duration ?? null,
+    ...(utmSource ? { utmSource } : {}),
+    ...(referredBy ? { referredBy } : {}),
+    ...(username ? { username } : {}),
   });
 
   // keepalive garante o envio mesmo quando o componente desmonta durante navegação

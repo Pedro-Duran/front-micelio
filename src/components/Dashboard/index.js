@@ -1,229 +1,502 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, Cell,
 } from "recharts";
 import Cabecalho from "../Cabecalho";
 import { authFetch } from "../../utils/api";
 
 const ACCENT = "#4fc3f7";
 const ACCENT_DIM = "#1a6b8a";
+const RETENTION_COLOR = "#81c784";
+const RETENTION_DIM   = "#2e5e35";
+const PALETTE = ["#4fc3f7", "#81c784", "#ffb74d", "#f06292", "#ba68c8", "#4db6ac", "#fff176", "#ff8a65"];
 
-const cardStyle = {
-  background: "#2a2a2a",
-  borderRadius: "8px",
-  padding: "20px 28px",
-  display: "flex",
-  flexDirection: "column",
-  gap: "4px",
-};
+const truncate = (str, n = 22) => (str?.length > n ? str.slice(0, n) + "…" : str ?? "");
 
-const labelStyle = {
-  color: "#888",
-  fontSize: "11px",
-  textTransform: "uppercase",
-  letterSpacing: "1px",
-};
+// ─── shared UI ───────────────────────────────────────────────────
 
-const valueStyle = {
-  color: "#e0e0e0",
-  fontSize: "28px",
-  fontWeight: "bold",
-};
-
-const sectionTitle = {
-  color: "#888",
-  fontSize: "12px",
-  textTransform: "uppercase",
-  letterSpacing: "1px",
-  marginBottom: "12px",
-};
-
-const CustomTooltip = ({ active, payload, label, unit }) => {
+const ChartTooltip = ({ active, payload, label, unit }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      style={{
-        background: "#1e1e1e",
-        border: "1px solid #333",
-        borderRadius: "6px",
-        padding: "8px 14px",
-        fontSize: "13px",
-        color: "#e0e0e0",
-      }}
-    >
-      <p style={{ margin: 0, color: "#888", marginBottom: "4px" }}>{label}</p>
+    <div style={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: "6px", padding: "8px 14px", fontSize: "13px", color: "#e0e0e0" }}>
+      <p style={{ margin: "0 0 4px", color: "#666" }}>{label}</p>
       <p style={{ margin: 0 }}>
         {payload[0].value}
-        {unit && <span style={{ color: "#888" }}> {unit}</span>}
+        {unit && <span style={{ color: "#666" }}> {unit}</span>}
       </p>
     </div>
   );
 };
 
+// KpiCard: label = título, sublabel = escopo (ex: "total" ou "média por post")
+const KpiCard = ({ label, sublabel, value, unit, muted }) => (
+  <div style={{ background: "#242424", border: "1px solid #2a2a2a", borderRadius: "8px", padding: "18px 22px" }}>
+    <div style={{ marginBottom: "10px" }}>
+      <div style={{ color: "#666", fontSize: "10px", textTransform: "uppercase", letterSpacing: "1.5px" }}>{label}</div>
+      {sublabel && <div style={{ color: "#3a3a3a", fontSize: "10px", marginTop: "2px" }}>{sublabel}</div>}
+    </div>
+    <div style={{ color: muted ? "#444" : "#e0e0e0", fontSize: "28px", fontWeight: "700", lineHeight: 1 }}>
+      {value}
+      {unit && <span style={{ fontSize: "14px", color: "#555", marginLeft: "5px", fontWeight: "400" }}>{unit}</span>}
+    </div>
+  </div>
+);
+
+const SectionTitle = ({ children }) => (
+  <p style={{ color: "#555", fontSize: "10px", textTransform: "uppercase", letterSpacing: "2px", fontWeight: "600", margin: "0 0 16px" }}>
+    {children}
+  </p>
+);
+
+const MiniTitle = ({ children }) => (
+  <p style={{ color: "#555", fontSize: "10px", textTransform: "uppercase", letterSpacing: "1.5px", margin: "0 0 12px" }}>
+    {children}
+  </p>
+);
+
+function SimpleBar({ data, dataKey, unit, height = 190, nameKey = "shortTitle", baseColor, dimColor, onBarClick }) {
+  const c1 = baseColor ?? ACCENT;
+  const c2 = dimColor  ?? ACCENT_DIM;
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} barCategoryGap="35%" margin={{ top: 4, right: 0, left: -10, bottom: 0 }}>
+        <XAxis dataKey={nameKey} tick={{ fill: "#555", fontSize: 11 }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fill: "#555", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+        <Tooltip content={<ChartTooltip unit={unit} />} cursor={{ fill: "#222" }} />
+        <Bar
+          dataKey={dataKey}
+          radius={[3, 3, 0, 0]}
+          onClick={onBarClick ? (item) => onBarClick(item) : undefined}
+          style={{ cursor: onBarClick ? "pointer" : "default" }}
+        >
+          {data.map((_, i) => <Cell key={i} fill={i % 2 === 0 ? c1 : c2} />)}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function RankList({ items, labelKey, valueKey, unit, color, emptyText = "Sem dados ainda." }) {
+  if (!items?.length) return <p style={{ color: "#3a3a3a", fontSize: "13px" }}>{emptyText}</p>;
+  const max = Math.max(...items.map((x) => x[valueKey] || 0), 1);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      {items.map((item, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <span style={{ color: "#3a3a3a", fontSize: "11px", width: "16px", textAlign: "right", flexShrink: 0 }}>{i + 1}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
+              <span style={{ color: "#ccc", fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: "8px" }}>
+                {item[labelKey]}
+              </span>
+              <span style={{ color: color || ACCENT, fontSize: "12px", flexShrink: 0 }}>
+                {item[valueKey]}{unit && ` ${unit}`}
+              </span>
+            </div>
+            <div style={{ height: "2px", background: "#2a2a2a", borderRadius: "1px" }}>
+              <div style={{ width: `${((item[valueKey] || 0) / max) * 100}%`, height: "100%", background: PALETTE[i % PALETTE.length], borderRadius: "1px" }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const Divider = () => <div style={{ borderTop: "1px solid #232323", margin: "40px 0" }} />;
+
+// ─── main ────────────────────────────────────────────────────────
+
 function Dashboard() {
-  const [data, setData] = useState([]);
+  const navigate = useNavigate();
+  const [summary, setSummary] = useState([]);
+  const [coverConversion, setCoverConversion] = useState([]);
+  const [subscriptions, setSubscriptions] = useState({ topSubscribers: [], topAuthors: [] });
+  const [shareLeaderboard, setShareLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeSubject, setActiveSubject] = useState(null);
 
   useEffect(() => {
-    authFetch("/api/events/summary")
-      .then((res) => {
-        if (!res.ok) throw new Error("Erro ao buscar analytics");
-        return res.json();
-      })
-      .then((d) => setData(d))
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
+    Promise.all([
+      authFetch("/api/events/summary").then((r) => (r.ok ? r.json() : [])).catch(() => []),
+      authFetch("/api/events/coverConversion").then((r) => (r.ok ? r.json() : [])).catch(() => []),
+      authFetch("/api/events/subscriptions").then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+      authFetch("/api/events/shareLeaderboard").then((r) => (r.ok ? r.json() : [])).catch(() => []),
+    ]).then(([s, cc, subs, sl]) => {
+      setSummary(Array.isArray(s) ? s : []);
+      setCoverConversion(Array.isArray(cc) ? cc : []);
+      setSubscriptions({
+        topSubscribers: Array.isArray(subs?.topSubscribers) ? subs.topSubscribers : [],
+        topAuthors: Array.isArray(subs?.topAuthors) ? subs.topAuthors : [],
+      });
+      setShareLeaderboard(Array.isArray(sl) ? sl : []);
+      setLoading(false);
+    });
   }, []);
 
-  const totalViews = data.reduce((acc, d) => acc + (d.viewCount || 0), 0);
-  const totalClicks = data.reduce((acc, d) => acc + (d.nodeClickCount || 0), 0);
-  const overallAvgDuration =
-    data.length > 0
-      ? Math.round(data.reduce((acc, d) => acc + (d.avgDuration || 0), 0) / data.length)
-      : 0;
+  // ── derived ──────────────────────────────────────────────────
 
-  const truncate = (str, n = 18) =>
-    str && str.length > n ? str.slice(0, n) + "…" : str;
+  const subjects = useMemo(() => {
+    const seen = new Set();
+    summary.forEach((p) => { if (p.subject) seen.add(p.subject); });
+    return [...seen].sort();
+  }, [summary]);
 
-  const chartData = data.map((d) => ({
-    ...d,
-    shortTitle: truncate(d.title),
-    avgDuration: Math.round(d.avgDuration || 0),
-  }));
+  useEffect(() => {
+    if (!activeSubject && subjects.length > 0) setActiveSubject(subjects[0]);
+  }, [subjects, activeSubject]);
+
+  const totalViews  = summary.reduce((a, d) => a + (d.viewCount || 0), 0);
+  const totalShares = summary.reduce((a, d) => a + (d.shareCount || 0), 0);
+  const avgDuration = summary.length > 0
+    ? Math.round(summary.reduce((a, d) => a + (d.avgDuration || 0), 0) / summary.length)
+    : 0;
+
+  // Top 10 por visualizações
+  const topByViews = useMemo(() =>
+    [...summary]
+      .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
+      .slice(0, 10)
+      .map((p) => ({ ...p, shortTitle: truncate(p.title) })),
+    [summary]
+  );
+
+  // Top 10 por retenção (tempo médio de leitura)
+  const topByRetention = useMemo(() =>
+    [...summary]
+      .filter((p) => (p.avgDuration || 0) > 0)
+      .sort((a, b) => (b.avgDuration || 0) - (a.avgDuration || 0))
+      .slice(0, 10)
+      .map((p) => ({ ...p, shortTitle: truncate(p.title), avgDuration: Math.round(p.avgDuration) })),
+    [summary]
+  );
+
+  // Top 10 mais curtidos
+  const topByLikes = useMemo(() =>
+    [...summary]
+      .filter((p) => (p.likeCount || 0) > 0)
+      .sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0))
+      .slice(0, 10)
+      .map((p) => ({ ...p, shortTitle: truncate(p.title) })),
+    [summary]
+  );
+
+  // Médias por subject (para os gráficos comparativos)
+  const subjectAggregates = useMemo(() => {
+    const map = {};
+    summary.forEach((p) => {
+      const s = p.subject;
+      if (!s) return;
+      if (!map[s]) map[s] = { duration: 0, likes: 0, shares: 0, count: 0 };
+      map[s].duration += p.avgDuration || 0;
+      map[s].likes    += p.likeCount   || 0;
+      map[s].shares   += p.shareCount  || 0;
+      map[s].count++;
+    });
+    return Object.entries(map).map(([subject, v]) => ({
+      shortTitle: truncate(subject, 16),
+      subject,
+      avgDuration: Math.round(v.duration / v.count),
+      avgLikes:    +(v.likes  / v.count).toFixed(1),
+      avgShares:   +(v.shares / v.count).toFixed(1),
+    }));
+  }, [summary]);
+
+  // Posts do subject ativo (para aba de detalhe)
+  const subjectPosts = useMemo(() =>
+    summary
+      .filter((p) => p.subject === activeSubject)
+      .map((p) => ({ ...p, shortTitle: truncate(p.title), avgDuration: Math.round(p.avgDuration || 0) })),
+    [summary, activeSubject]
+  );
+
+  const subjectCovers = useMemo(() =>
+    coverConversion
+      .filter((c) => c.subject === activeSubject)
+      .sort((a, b) => (b.clickCount || 0) - (a.clickCount || 0))
+      .slice(0, 6),
+    [coverConversion, activeSubject]
+  );
+
+  const hasSubData = subscriptions.topSubscribers.length > 0 || subscriptions.topAuthors.length > 0;
+
+  // ── render ───────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <>
+        <Cabecalho />
+        <div style={{ background: "#1e1e1e", minHeight: "calc(100vh - 60px)", padding: "40px 60px" }}>
+          <p style={{ color: "#444" }}>Carregando...</p>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
       <Cabecalho />
-      <div
-        style={{
-          background: "#1e1e1e",
-          minHeight: "calc(100vh - 60px)",
-          padding: "40px 60px",
-          color: "#e0e0e0",
-        }}
-      >
-        <h1 style={{ fontSize: "22px", marginTop: 0, marginBottom: "32px" }}>
+      <div style={{ background: "#1e1e1e", minHeight: "calc(100vh - 60px)", padding: "40px 60px", color: "#e0e0e0" }}>
+        <h1 style={{ fontSize: "18px", marginTop: 0, marginBottom: "32px", color: "#888", fontWeight: "600", letterSpacing: "0.5px" }}>
           Analytics
         </h1>
 
-        {loading ? (
-          <p style={{ color: "#888" }}>Carregando...</p>
-        ) : data.length === 0 ? (
-          <p style={{ color: "#888" }}>Nenhum dado de sessão registrado ainda.</p>
+        {summary.length === 0 ? (
+          <p style={{ color: "#444" }}>Nenhum dado de sessão registrado ainda.</p>
         ) : (
           <>
-            {/* Cartões de resumo */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: "16px",
-                marginBottom: "48px",
-              }}
-            >
-              <div style={cardStyle}>
-                <span style={labelStyle}>Total de visualizações</span>
-                <span style={valueStyle}>{totalViews}</span>
+            {/* ── KPIs ────────────────────────────────────────────── */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "48px" }}>
+              <KpiCard label="Visualizações" sublabel="total acumulado" value={totalViews} />
+              <KpiCard label="Tempo médio de leitura" sublabel="média entre todos os posts" value={avgDuration} unit="s" />
+              <KpiCard label="Compartilhamentos" sublabel="total acumulado" value={totalShares} muted={totalShares === 0} />
+            </div>
+
+            {/* ── Posts: visualizações + retenção + likes ──────── */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "40px", marginBottom: "0" }}>
+              <div>
+                <SectionTitle>Top posts — visualizações</SectionTitle>
+                <SimpleBar
+                  data={topByViews}
+                  dataKey="viewCount"
+                  height={200}
+                  onBarClick={(item) => item.postId && navigate(`/post/${item.postId}`)}
+                />
               </div>
-              <div style={cardStyle}>
-                <span style={labelStyle}>Tempo médio de leitura</span>
-                <span style={valueStyle}>
-                  {overallAvgDuration}
-                  <span style={{ fontSize: "16px", color: "#888", marginLeft: "6px" }}>s</span>
-                </span>
+              <div>
+                <SectionTitle>Retenção — tempo médio de leitura</SectionTitle>
+                {topByRetention.length === 0 ? (
+                  <p style={{ color: "#444", fontSize: "13px", marginTop: "16px" }}>Sem dados de leitura ainda.</p>
+                ) : (
+                  <SimpleBar
+                    data={topByRetention}
+                    dataKey="avgDuration"
+                    unit="s"
+                    height={200}
+                    baseColor={RETENTION_COLOR}
+                    dimColor={RETENTION_DIM}
+                    onBarClick={(item) => item.postId && navigate(`/post/${item.postId}`)}
+                  />
+                )}
               </div>
-              <div style={cardStyle}>
-                <span style={labelStyle}>Clicks em nós do grafo</span>
-                <span style={valueStyle}>{totalClicks}</span>
+              <div>
+                <SectionTitle>Mais curtidos</SectionTitle>
+                {topByLikes.length === 0 ? (
+                  <p style={{ color: "#444", fontSize: "13px", marginTop: "16px" }}>Sem likes registrados ainda.</p>
+                ) : (
+                  <SimpleBar
+                    data={topByLikes}
+                    dataKey="likeCount"
+                    height={200}
+                    baseColor="#f06292"
+                    dimColor="#7a2a45"
+                    onBarClick={(item) => item.postId && navigate(`/post/${item.postId}`)}
+                  />
+                )}
               </div>
             </div>
 
-            {/* Gráfico: Visualizações por post */}
-            <div style={{ marginBottom: "48px" }}>
-              <p style={sectionTitle}>Visualizações por post</p>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={chartData} barCategoryGap="30%">
-                  <XAxis
-                    dataKey="shortTitle"
-                    tick={{ fill: "#888", fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
+            <Divider />
+
+            {/* ── Comparativo por subject ──────────────────────── */}
+            {subjectAggregates.length > 1 && (
+              <>
+                <SectionTitle>Comparativo por subject</SectionTitle>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "40px", marginBottom: "0" }}>
+                  <div>
+                    <MiniTitle>Tempo médio de leitura</MiniTitle>
+                    <SimpleBar
+                      data={subjectAggregates}
+                      dataKey="avgDuration"
+                      unit="s"
+                      height={180}
+                    />
+                  </div>
+                  <div>
+                    <MiniTitle>Compartilhamentos (média por post)</MiniTitle>
+                    <SimpleBar
+                      data={subjectAggregates}
+                      dataKey="avgShares"
+                      height={180}
+                      baseColor="#ffb74d"
+                      dimColor="#7a5520"
+                    />
+                  </div>
+                  <div>
+                    <MiniTitle>Likes (média por post)</MiniTitle>
+                    <SimpleBar
+                      data={subjectAggregates}
+                      dataKey="avgLikes"
+                      height={180}
+                      baseColor="#f06292"
+                      dimColor="#7a2a45"
+                    />
+                  </div>
+                </div>
+
+                <Divider />
+              </>
+            )}
+
+            {/* ── Detalhe por subject (tabs) ──────────────────── */}
+            {subjects.length > 0 && (
+              <>
+                <SectionTitle>Detalhe por subject</SectionTitle>
+
+                <div style={{ display: "flex", borderBottom: "1px solid #2a2a2a", marginBottom: "28px", overflowX: "auto" }}>
+                  {subjects.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setActiveSubject(s)}
+                      style={{
+                        background: "none", border: "none",
+                        padding: "8px 18px",
+                        color: activeSubject === s ? ACCENT : "#555",
+                        fontSize: "13px", cursor: "pointer",
+                        borderBottom: `2px solid ${activeSubject === s ? ACCENT : "transparent"}`,
+                        marginBottom: "-1px",
+                        whiteSpace: "nowrap", flexShrink: 0,
+                        transition: "color 0.15s",
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+
+                {subjectPosts.length === 0 ? (
+                  <p style={{ color: "#444", fontSize: "13px" }}>Nenhum post com dados para este subject.</p>
+                ) : (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "40px", marginBottom: "32px" }}>
+                      <div>
+                        <MiniTitle>Visualizações por post</MiniTitle>
+                        <SimpleBar
+                          data={subjectPosts}
+                          dataKey="viewCount"
+                          height={190}
+                          onBarClick={(item) => item.postId && navigate(`/post/${item.postId}`)}
+                        />
+                      </div>
+                      <div>
+                        <MiniTitle>Tempo médio de leitura por post</MiniTitle>
+                        <SimpleBar
+                          data={subjectPosts}
+                          dataKey="avgDuration"
+                          unit="s"
+                          height={190}
+                          baseColor={RETENTION_COLOR}
+                          dimColor={RETENTION_DIM}
+                          onBarClick={(item) => item.postId && navigate(`/post/${item.postId}`)}
+                        />
+                      </div>
+                    </div>
+
+                    {subjectPosts.some((p) => p.likeCount > 0) && (
+                      <div style={{ marginBottom: "32px" }}>
+                        <MiniTitle>Likes por post</MiniTitle>
+                        <SimpleBar
+                          data={subjectPosts}
+                          dataKey="likeCount"
+                          height={170}
+                          baseColor="#f06292"
+                          dimColor="#7a2a45"
+                          onBarClick={(item) => item.postId && navigate(`/post/${item.postId}`)}
+                        />
+                      </div>
+                    )}
+
+                    {subjectCovers.length > 0 && (
+                      <div>
+                        <MiniTitle>Covers com mais conversões</MiniTitle>
+                        <div style={{ display: "flex", gap: "12px", overflowX: "auto", paddingBottom: "4px" }}>
+                          {subjectCovers.map((cover, i) => (
+                            <div key={i} style={{ flexShrink: 0, width: "150px", borderRadius: "6px", overflow: "hidden", border: "1px solid #2a2a2a", background: "#242424" }}>
+                              {cover.coverImageUrl ? (
+                                <img src={cover.coverImageUrl} alt="" style={{ width: "100%", height: "96px", objectFit: "cover", display: "block" }} />
+                              ) : (
+                                <div style={{ width: "100%", height: "96px", background: "#2a2a2a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                  <span style={{ color: "#3a3a3a", fontSize: "11px" }}>sem capa</span>
+                                </div>
+                              )}
+                              <div style={{ padding: "8px 10px" }}>
+                                <p style={{ margin: "0 0 5px", color: "#888", fontSize: "11px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {truncate(cover.postTitle, 20)}
+                                </p>
+                                <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+                                  <span style={{ color: ACCENT, fontSize: "16px", fontWeight: "700" }}>{cover.clickCount ?? 0}</span>
+                                  <span style={{ color: "#555", fontSize: "11px" }}>cliques</span>
+                                </div>
+                                {cover.viewCount > 0 && (
+                                  <p style={{ margin: "2px 0 0", color: "#444", fontSize: "11px" }}>
+                                    CTR: {((cover.clickCount / cover.viewCount) * 100).toFixed(1)}%
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                <Divider />
+              </>
+            )}
+
+            {/* ── Compartilhamentos ────────────────────────────── */}
+            <div style={{ marginBottom: "0" }}>
+              <SectionTitle>Compartilhamentos</SectionTitle>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "48px" }}>
+                <div>
+                  <MiniTitle>Top compartilhadores</MiniTitle>
+                  <RankList
+                    items={shareLeaderboard.slice(0, 8)}
+                    labelKey="username"
+                    valueKey="shareCount"
+                    color="#81c784"
+                    emptyText="Nenhum compartilhamento registrado ainda."
                   />
-                  <YAxis
-                    tick={{ fill: "#888", fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                    allowDecimals={false}
-                  />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "#2a2a2a" }} />
-                  <Bar dataKey="viewCount" radius={[4, 4, 0, 0]}>
-                    {chartData.map((_, i) => (
-                      <Cell key={i} fill={i % 2 === 0 ? ACCENT : ACCENT_DIM} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+                </div>
+                <div>
+                  <MiniTitle>Shares por subject (total)</MiniTitle>
+                  {subjectAggregates.some((s) => s.avgShares > 0) ? (
+                    <SimpleBar
+                      data={subjectAggregates}
+                      dataKey="avgShares"
+                      height={200}
+                      baseColor="#ffb74d"
+                      dimColor="#7a5520"
+                    />
+                  ) : (
+                    <p style={{ color: "#3a3a3a", fontSize: "13px" }}>Nenhum compartilhamento registrado ainda.</p>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Gráfico: Tempo médio de leitura */}
-            <div style={{ marginBottom: "48px" }}>
-              <p style={sectionTitle}>Tempo médio de leitura por post (segundos)</p>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={chartData} barCategoryGap="30%">
-                  <XAxis
-                    dataKey="shortTitle"
-                    tick={{ fill: "#888", fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fill: "#888", fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                    allowDecimals={false}
-                  />
-                  <Tooltip content={<CustomTooltip unit="s" />} cursor={{ fill: "#2a2a2a" }} />
-                  <Bar dataKey="avgDuration" radius={[4, 4, 0, 0]}>
-                    {chartData.map((_, i) => (
-                      <Cell key={i} fill={i % 2 === 0 ? ACCENT : ACCENT_DIM} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Gráfico: Clicks em nós */}
-            <div style={{ marginBottom: "48px" }}>
-              <p style={sectionTitle}>Clicks em nós do grafo por post</p>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={chartData} barCategoryGap="30%">
-                  <XAxis
-                    dataKey="shortTitle"
-                    tick={{ fill: "#888", fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fill: "#888", fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                    allowDecimals={false}
-                  />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "#2a2a2a" }} />
-                  <Bar dataKey="nodeClickCount" radius={[4, 4, 0, 0]}>
-                    {chartData.map((_, i) => (
-                      <Cell key={i} fill={i % 2 === 0 ? ACCENT : ACCENT_DIM} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {/* ── Inscrições ───────────────────────────────────── */}
+            {hasSubData && (
+              <>
+                <Divider />
+                <div>
+                  <SectionTitle>Inscrições em stubs</SectionTitle>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "48px" }}>
+                    <div>
+                      <MiniTitle>Usuários que mais se inscrevem</MiniTitle>
+                      <RankList items={subscriptions.topSubscribers.slice(0, 8)} labelKey="username" valueKey="count" color="#ffb74d" />
+                    </div>
+                    <div>
+                      <MiniTitle>Autores com mais inscrições</MiniTitle>
+                      <RankList items={subscriptions.topAuthors.slice(0, 8)} labelKey="authorUsername" valueKey="subscriptionCount" color="#ba68c8" />
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
