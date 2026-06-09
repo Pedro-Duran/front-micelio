@@ -12,6 +12,8 @@ import { authFetch, authFetchMultipart, parsePage } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import Comments from "../Comments";
 import StubModal from "../StubModal";
+import WikilinkSubjectsModal from "../WikilinkSubjectsModal";
+import ShareButton from "../ShareButton";
 
 const TL_SPEEDS = { Devagar: 1500, Normal: 800, "Rápido": 300 };
 
@@ -35,6 +37,9 @@ function PostPage() {
   const [allSubjects, setAllSubjects] = useState([]);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [newSubjectInput, setNewSubjectInput] = useState("");
+  const [pendingWikilinks, setPendingWikilinks] = useState(null);
+  const [likeCount, setLikeCount] = useState(0);
+  const [likedByMe, setLikedByMe] = useState(false);
 
   // Sidebar: "graph" | "timeline"
   const [sidebarMode, setSidebarMode] = useState("graph");
@@ -64,12 +69,19 @@ function PostPage() {
       .then(setAllSubjects);
   }, []);
 
-  // VIEW analytics
+  // VIEW analytics — captures ref/utm from URL on mount and clears them
   useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const referredBy = searchParams.get("ref") || undefined;
+    const utmSource = searchParams.get("utm_source") || undefined;
+    if (referredBy || utmSource) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+
     const startTime = Date.now();
     return () => {
       const duration = Math.round((Date.now() - startTime) / 1000);
-      registerEvent({ postId, eventType: "VIEW", duration });
+      registerEvent({ postId, eventType: "VIEW", duration, referredBy, utmSource });
     };
   }, [postId]);
 
@@ -115,6 +127,11 @@ function PostPage() {
           setEditedTitle(current.title);
           setEditedContent(current.content);
           setEditedSubjects(current.subjects?.length > 0 ? current.subjects : (current.subject ? [current.subject] : []));
+        }
+        const rawPost = data.find((p) => p.id === postId);
+        if (rawPost) {
+          setLikeCount(rawPost.likeCount || 0);
+          setLikedByMe(rawPost.likedByMe || false);
         }
       })
       .catch((err) => console.error(err));
@@ -373,7 +390,8 @@ function PostPage() {
     return [...new Set(titles)];
   };
 
-  const handleSave = async () => {
+  const doSave = async (wikilinkAssignments) => {
+    setPendingWikilinks(null);
     const newWikilinks = parseWikilinks(editedContent);
     const transitioningFromStub = post.isStub && editedContent.trim().length > 0;
 
@@ -382,7 +400,7 @@ function PostPage() {
       title: editedTitle,
       content: editedContent,
       links: [],
-      wikilinks: newWikilinks,
+      wikilinks: wikilinkAssignments,
       subjects: editedSubjects,
       ...(transitioningFromStub ? { isStub: false } : {}),
     };
@@ -432,6 +450,41 @@ function PostPage() {
     }
   };
 
+  const handleSave = async () => {
+    const newWikilinks = parseWikilinks(editedContent);
+    const existingTitles = new Set(allNodes.map((n) => n.title.toLowerCase()));
+    const oldWikilinkSet = new Set(parseWikilinks(post.content).map((t) => t.toLowerCase()));
+
+    // Only ask about subjects for wikilinks that are new (not existing posts, not previously present)
+    const trulyNew = newWikilinks.filter(
+      (t) => !existingTitles.has(t.toLowerCase()) && !oldWikilinkSet.has(t.toLowerCase())
+    );
+
+    if (trulyNew.length > 0) {
+      setPendingWikilinks(trulyNew);
+      return;
+    }
+
+    // For existing/unchanged wikilinks, just send them with parent subjects
+    await doSave(newWikilinks.map((t) => ({ title: t, subjects: editedSubjects })));
+  };
+
+  const handleLike = async () => {
+    if (!isLoggedIn) return;
+    const wasLiked = likedByMe;
+    setLikedByMe(!wasLiked);
+    setLikeCount((c) => (wasLiked ? c - 1 : c + 1));
+    try {
+      const res = await authFetch(`/api/posts/${postId}/like`, {
+        method: wasLiked ? "DELETE" : "POST",
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setLikedByMe(wasLiked);
+      setLikeCount((c) => (wasLiked ? c + 1 : c - 1));
+    }
+  };
+
   const handleDelete = async () => {
     if (!window.confirm(`Deletar "${post.title}"? Essa ação não pode ser desfeita.`)) return;
     try {
@@ -468,6 +521,25 @@ function PostPage() {
           postId={stubModal.id}
           postTitle={stubModal.title}
           onClose={() => setStubModal(null)}
+        />
+      )}
+      {pendingWikilinks && (
+        <WikilinkSubjectsModal
+          wikilinks={pendingWikilinks}
+          defaultSubjects={editedSubjects}
+          allSubjects={allSubjects}
+          confirmLabel="Confirmar e salvar"
+          onConfirm={(assignments) => {
+            const assignmentMap = Object.fromEntries(
+              assignments.map(({ title, subjects }) => [title.toLowerCase(), subjects])
+            );
+            const merged = parseWikilinks(editedContent).map((t) => ({
+              title: t,
+              subjects: assignmentMap[t.toLowerCase()] || editedSubjects,
+            }));
+            doSave(merged);
+          }}
+          onCancel={() => setPendingWikilinks(null)}
         />
       )}
       {lightboxSrc && (
@@ -625,6 +697,7 @@ function PostPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <h1 style={{ fontSize: "28px", marginBottom: "8px", marginTop: 0 }}>{editedTitle}</h1>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <ShareButton postId={postId} username={currentUsername} />
                   {isLoggedIn && !post.isStub && (
                     <button
                       onClick={() => navigate("/novoPost", { state: { refTitle: post.title, refPostId: postId } })}
@@ -644,20 +717,50 @@ function PostPage() {
                   )}
                 </div>
               </div>
-              <p style={{ color: "#888", fontSize: "13px", marginBottom: "24px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" }}>
-                <span>Autor: {post.author} ·</span>
-                {(post.subjects?.length > 0 ? post.subjects : [post.subject]).filter(Boolean).map((s) => (
-                  <Link
-                    key={s}
-                    to={`/subject/${encodeURIComponent(s)}`}
-                    style={{ color: "#888", textDecoration: "none", borderBottom: "1px solid #444" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; e.currentTarget.style.borderBottomColor = "#4fc3f7"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "#888"; e.currentTarget.style.borderBottomColor = "#444"; }}
-                  >
-                    {s}
-                  </Link>
-                ))}
-              </p>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "24px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <p style={{ color: "#888", fontSize: "13px", margin: 0 }}>
+                    Autor: <span style={{ color: "#aaa" }}>{post.author}</span>
+                  </p>
+                  <p style={{ color: "#888", fontSize: "13px", margin: 0, display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" }}>
+                    <span>Assunto:</span>
+                    {(post.subjects?.length > 0 ? post.subjects : [post.subject]).filter(Boolean).map((s) => (
+                      <Link
+                        key={s}
+                        to={`/subject/${encodeURIComponent(s)}`}
+                        style={{ color: "#888", textDecoration: "none", borderBottom: "1px solid #444" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; e.currentTarget.style.borderBottomColor = "#4fc3f7"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = "#888"; e.currentTarget.style.borderBottomColor = "#444"; }}
+                      >
+                        {s}
+                      </Link>
+                    ))}
+                  </p>
+                </div>
+                <button
+                  onClick={handleLike}
+                  title={isLoggedIn ? (likedByMe ? "Descurtir" : "Curtir") : "Faça login para curtir"}
+                  style={{
+                    background: "none",
+                    border: `1px solid ${likedByMe ? "#c2185b" : "#333"}`,
+                    borderRadius: "20px",
+                    color: likedByMe ? "#f06292" : "#555",
+                    cursor: isLoggedIn ? "pointer" : "default",
+                    fontSize: "13px",
+                    padding: "4px 14px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    transition: "color 0.15s, border-color 0.15s",
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={(e) => { if (isLoggedIn && !likedByMe) { e.currentTarget.style.color = "#f06292"; e.currentTarget.style.borderColor = "#c2185b"; } }}
+                  onMouseLeave={(e) => { if (!likedByMe) { e.currentTarget.style.color = "#555"; e.currentTarget.style.borderColor = "#333"; } }}
+                >
+                  <span style={{ fontSize: "15px" }}>{likedByMe ? "♥" : "♡"}</span>
+                  {likeCount > 0 && <span>{likeCount}</span>}
+                </button>
+              </div>
               <div data-color-mode="dark" style={{ lineHeight: "1.8", fontSize: "15px" }}>
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}

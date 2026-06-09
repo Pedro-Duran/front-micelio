@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import MDEditor from "@uiw/react-md-editor";
 import Cabecalho from "../Cabecalho";
+import WikilinkSubjectsModal from "../WikilinkSubjectsModal";
 import { authFetch } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 
@@ -31,6 +32,7 @@ function NovoPost() {
   const [newSubjectInput, setNewSubjectInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [subjectError, setSubjectError] = useState(false);
+  const [pendingWikilinks, setPendingWikilinks] = useState(null);
 
   useEffect(() => {
     fetch("/api/posts/subjects")
@@ -58,21 +60,17 @@ function NovoPost() {
     setNewSubjectInput("");
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (selectedSubjects.length === 0) { setSubjectError(true); setShowSubjectModal(true); return; }
-    setSubjectError(false);
+  const doSubmit = async (wikilinkAssignments) => {
+    setPendingWikilinks(null);
     setIsSubmitting(true);
-
     const body = {
       title,
       content,
       authorUsername: username,
       subjects: selectedSubjects,
       links: [],
-      wikilinks: parseWikilinks(content),
+      wikilinks: wikilinkAssignments,
     };
-
     try {
       const response = await authFetch("/api/posts/createPost", {
         method: "POST",
@@ -88,6 +86,19 @@ function NovoPost() {
     }
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (selectedSubjects.length === 0) { setSubjectError(true); setShowSubjectModal(true); return; }
+    setSubjectError(false);
+
+    const detected = parseWikilinks(content);
+    if (detected.length > 0) {
+      setPendingWikilinks(detected);
+      return;
+    }
+    await doSubmit([]);
+  };
+
   const inputStyle = {
     width: "100%", background: "#1e1e1e", border: "1px solid #444",
     borderRadius: "4px", padding: "8px 12px", color: "#e0e0e0",
@@ -97,6 +108,16 @@ function NovoPost() {
 
   return (
     <>
+      {pendingWikilinks && (
+        <WikilinkSubjectsModal
+          wikilinks={pendingWikilinks}
+          defaultSubjects={selectedSubjects}
+          allSubjects={allSubjects}
+          confirmLabel="Confirmar e publicar"
+          onConfirm={(assignments) => doSubmit(assignments)}
+          onCancel={() => setPendingWikilinks(null)}
+        />
+      )}
       {/* Subject modal */}
       {showSubjectModal && (
         <div
