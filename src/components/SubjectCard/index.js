@@ -203,6 +203,7 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
           <ForceGraph2D
             graphData={{ nodes, links }}
             nodeLabel="title"
+            pixelRatio={window.devicePixelRatio}
             nodeCanvasObject={paintNode}
             nodeCanvasObjectMode={() => "replace"}
             linkColor={() => "rgba(22, 157, 211, 0.4)"}

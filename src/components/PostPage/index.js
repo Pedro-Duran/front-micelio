@@ -50,8 +50,6 @@ function PostPage() {
   const [tlSpeed, setTlSpeed] = useState("Normal");
 
   const sidebarRef = useRef();
-  const recorderRef = useRef();
-  const chunksRef = useRef([]);
   const imageInputRef = useRef(null);
   const editorApiRef = useRef(null);
   const coverInputRef = useRef(null);
@@ -215,7 +213,6 @@ function PostPage() {
     if (tlIndex >= timelineNodes.length) {
       setTlRunning(false);
       setTlDone(true);
-      if (recorderRef.current?.state === "recording") recorderRef.current.stop();
       return;
     }
 
@@ -258,36 +255,6 @@ function PostPage() {
     setSidebarMode("timeline");
   };
 
-  const handleRecord = () => {
-    const canvas = sidebarRef.current?.querySelector("canvas");
-    if (!canvas) return;
-
-    resetTimeline();
-    chunksRef.current = [];
-
-    const stream = canvas.captureStream(30);
-    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-      ? "video/webm;codecs=vp9"
-      : "video/webm";
-    const recorder = new MediaRecorder(stream, { mimeType });
-
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data);
-    };
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: "video/webm" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${post.title}-timeline.webm`;
-      a.click();
-      URL.revokeObjectURL(url);
-    };
-
-    recorderRef.current = recorder;
-    recorder.start();
-    setTlRunning(true);
-  };
 
   const imageUploadCommand = {
     name: "imageUpload",
@@ -512,7 +479,6 @@ function PostPage() {
   const tlProgress =
     timelineNodes.length > 0 ? (tlIndex / timelineNodes.length) * 100 : 0;
   const tlCurrentNode = tlIndex > 0 ? timelineNodes[tlIndex - 1] : null;
-  const isRecording = recorderRef.current?.state === "recording";
 
   return (
     <>
@@ -836,6 +802,7 @@ function PostPage() {
               <ForceGraph2D
                 graphData={localGraphData}
                 nodeLabel="title"
+                pixelRatio={window.devicePixelRatio}
                 linkColor={() => "rgba(22, 157, 211, 0.4)"}
                 width={228}
                 height={220}
@@ -935,6 +902,7 @@ function PostPage() {
                 <ForceGraph2D
                   graphData={tlData}
                   nodeLabel="title"
+                  pixelRatio={window.devicePixelRatio}
                   linkColor={() => "rgba(22, 157, 211, 0.4)"}
                   backgroundColor="#1e1e1e"
                   width={228}
@@ -988,14 +956,6 @@ function PostPage() {
                 ))}
               </div>
 
-              {/* Gravar e baixar */}
-              <button
-                onClick={handleRecord}
-                disabled={isRecording || tlRunning}
-                style={{ padding: "6px 10px", background: "#1e1e1e", color: isRecording ? "#555" : "#aaa", border: "1px solid #333", borderRadius: "4px", cursor: isRecording || tlRunning ? "default" : "pointer", fontSize: "11px" }}
-              >
-                {isRecording ? "⏺ Gravando..." : "⬇ Gravar e baixar"}
-              </button>
             </>
           )}
         </div>

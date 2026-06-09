@@ -145,6 +145,7 @@ function Timeline() {
             <ForceGraph2D
               graphData={graphData}
               nodeLabel="title"
+              pixelRatio={window.devicePixelRatio}
               linkColor={() => "rgba(22, 157, 211, 0.45)"}
               backgroundColor="#1e1e1e"
               width={dimensions.width}

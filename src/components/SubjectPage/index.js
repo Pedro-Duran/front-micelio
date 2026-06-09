@@ -143,6 +143,7 @@ function SubjectPage() {
                     graphData={{ nodes, links }}
                     width={graphWidth}
                     height={280}
+                    pixelRatio={window.devicePixelRatio}
                     nodeLabel="title"
                     nodeCanvasObject={paintNode}
                     nodeCanvasObjectMode={() => "replace"}
