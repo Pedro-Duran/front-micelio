@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { ForceGraph2D } from "react-force-graph";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -12,6 +12,7 @@ import { authFetch, authFetchMultipart, parsePage } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import Comments from "../Comments";
 import StubModal from "../StubModal";
+import Avatar from "../Avatar";
 import WikilinkSubjectsModal from "../WikilinkSubjectsModal";
 import ShareButton from "../ShareButton";
 
@@ -21,7 +22,10 @@ function PostPage() {
   const { id } = useParams();
   const postId = parseInt(id);
   const navigate = useNavigate();
+  const location = useLocation();
   const { isLoggedIn, username: currentUsername } = useAuth();
+
+  const fromPost = location.state?.fromPost ?? null;
 
   const [allNodes, setAllNodes] = useState([]);
   const [allLinks, setAllLinks] = useState([]);
@@ -105,6 +109,7 @@ function PostPage() {
           isStub: p.isStub || false,
           createdAt: p.createdAt || null,
           coverImageUrl: p.coverImageUrl || null,
+          avatarUrl: p.authorAvatarUrl || p.author?.avatarUrl || null,
         }));
 
         const links = [];
@@ -436,6 +441,9 @@ function PostPage() {
     await doSave(newWikilinks.map((t) => ({ title: t, subjects: editedSubjects })));
   };
 
+  const goToPost = (targetId) =>
+    navigate(`/post/${targetId}`, { state: { fromPost: { id: postId, title: post?.title ?? "" } } });
+
   const handleLike = async () => {
     if (!isLoggedIn) return;
     const wasLiked = likedByMe;
@@ -764,25 +772,6 @@ function PostPage() {
                 </ReactMarkdown>
               </div>
 
-              {backlinks.length > 0 && (
-                <div style={{ marginTop: "48px", paddingTop: "24px", borderTop: "1px solid #2a2a2a" }}>
-                  <h4 style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", margin: "0 0 12px" }}>
-                    Backlinks
-                  </h4>
-                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {backlinks.map((node) => (
-                      <li key={node.id}>
-                        <Link
-                          to={`/post/${node.id}`}
-                          style={{ color: "#4fc3f7", fontSize: "14px", textDecoration: "none" }}
-                        >
-                          ← {node.title}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
 
               <Comments postId={postId} />
             </>
@@ -796,6 +785,28 @@ function PostPage() {
         >
           {sidebarMode === "graph" ? (
             <>
+              {fromPost && (
+                <button
+                  onClick={() => navigate(`/post/${fromPost.id}`)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "8px",
+                    width: "100%", marginBottom: "12px",
+                    background: "#1a2a35",
+                    border: "1px solid #1e4a62",
+                    borderRadius: "6px",
+                    padding: "8px 12px",
+                    cursor: "pointer", textAlign: "left",
+                    color: "#4fc3f7", fontSize: "12px",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "#1e3a4a"; e.currentTarget.style.borderColor = "#4fc3f7"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "#1a2a35"; e.currentTarget.style.borderColor = "#1e4a62"; }}
+                >
+                  <span style={{ fontSize: "14px", lineHeight: 1, flexShrink: 0 }}>←</span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.4 }}>
+                    {fromPost.title}
+                  </span>
+                </button>
+              )}
               <h4 style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", margin: 0 }}>
                 Graph local
               </h4>
@@ -809,7 +820,7 @@ function PostPage() {
                 onNodeClick={(node) => {
                   if (node.isStub && node.authorUsername !== currentUsername) { setStubModal({ id: node.id, title: node.title }); return; }
                   registerEvent({ postId: node.id, eventType: "CLICK_NODE" });
-                  navigate(`/post/${node.id}`);
+                  goToPost(node.id);
                 }}
                 nodeCanvasObject={(node, ctx, globalScale) => {
                   const isCurrent = node.id === postId;
@@ -855,7 +866,7 @@ function PostPage() {
                           <button
                             onClick={() => {
                               registerEvent({ postId: node.id, eventType: "CLICK_NODE" });
-                              navigate(`/post/${node.id}`);
+                              goToPost(node.id);
                             }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = "#2a2a2a"; }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
@@ -879,6 +890,41 @@ function PostPage() {
                         </li>
                       ))}
                   </ul>
+                </>
+              )}
+
+              {/* Referenciado por */}
+              {backlinks.length > 0 && (
+                <>
+                  <h4 style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", margin: "12px 0 6px" }}>
+                    Referenciado por
+                  </h4>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    {backlinks.map((node) => (
+                      <div
+                        key={node.id}
+                        style={{ display: "flex", alignItems: "stretch", background: "#242424", border: "1px solid #2a2a2a", borderRadius: "5px", overflow: "hidden" }}
+                      >
+                        <button
+                          onClick={() => navigate(`/user/${node.authorUsername}`)}
+                          title={node.authorUsername}
+                          style={{ display: "flex", alignItems: "center", padding: "6px 8px", background: "none", border: "none", borderRight: "1px solid #2a2a2a", cursor: "pointer", flexShrink: 0 }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = "#2e2e2e"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                        >
+                          <Avatar avatarUrl={node.avatarUrl} username={node.authorUsername} size={20} />
+                        </button>
+                        <button
+                          onClick={() => goToPost(node.id)}
+                          style={{ flex: 1, padding: "6px 8px", background: "none", border: "none", cursor: "pointer", textAlign: "left", color: "#666", fontSize: "11px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; e.currentTarget.style.background = "#1e2a30"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.background = "none"; }}
+                        >
+                          {node.title}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </>
               )}
             </>

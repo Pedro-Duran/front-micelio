@@ -18,8 +18,10 @@ function SubjectsSidebar() {
       .then((data) => {
         const counts = {};
         data.forEach((post) => {
-          const s = post.subject || "Sem categoria";
-          counts[s] = (counts[s] || 0) + 1;
+          const subjs = Array.isArray(post.subjects) && post.subjects.length > 0
+            ? post.subjects
+            : post.subject ? [post.subject] : ["Sem categoria"];
+          subjs.forEach((s) => { counts[s] = (counts[s] || 0) + 1; });
         });
         setSubjects(Object.entries(counts).map(([name, count]) => ({ name, count })));
       });
