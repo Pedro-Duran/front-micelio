@@ -401,15 +401,29 @@ function PostPage() {
       const oldWikilinks = parseWikilinks(post.content);
       const newWikilinkSet = new Set(newWikilinks.map((t) => t.toLowerCase()));
       const removedTitles = oldWikilinks.filter((t) => !newWikilinkSet.has(t.toLowerCase()));
-      const removedStubIds = removedTitles
+      const removedNodes = removedTitles
         .map((title) => allNodes.find((n) => n.title.toLowerCase() === title.toLowerCase()))
-        .filter((n) => n && n.isStub)
-        .map((n) => n.id);
+        .filter(Boolean);
+      const removedStubIds = removedNodes.filter((n) => n.isStub).map((n) => n.id);
+      const removedRealIds = new Set(removedNodes.filter((n) => !n.isStub).map((n) => n.id));
       await Promise.all(
         removedStubIds.map((id) =>
           authFetch(`/api/posts/deletePost?id=${id}`, { method: "DELETE" })
         )
       );
+
+      // Remove links to real posts that are no longer referenced — update local state immediately
+      if (removedRealIds.size > 0 || removedStubIds.length > 0) {
+        const removedAllIds = new Set([...removedRealIds, ...removedStubIds]);
+        setAllLinks((prev) =>
+          prev.filter((link) => {
+            const src = typeof link.source === "object" ? link.source.id : link.source;
+            const tgt = typeof link.target === "object" ? link.target.id : link.target;
+            return !(src === postId && removedAllIds.has(tgt));
+          })
+        );
+        setAllNodes((prev) => prev.filter((n) => !removedStubIds.includes(n.id)));
+      }
 
       // Delete inline images from S3 that were removed from the content
       const oldImageUrls = extractImageUrls(post.content);

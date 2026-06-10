@@ -186,9 +186,9 @@
     "post_other": "{{count}} posts"
   },
   "sidebar": {
-    "categories": "Categories",
+    "categories": "Topics",
     "all": "All",
-    "noCategory": "Uncategorized"
+    "noCategory": "No topic"
   },
   "timeline": {
     "loading": "Loading posts...",
