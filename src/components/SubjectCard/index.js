@@ -38,6 +38,7 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
     const saved = localStorage.getItem(`cardWidth_${subject}`);
     return saved ? Number(saved) : DEFAULT_W;
   });
+  const fgRef = useRef(null);
   const draggingCard = useRef(false);
   const dragStartX = useRef(0);
   const dragStartW = useRef(0);
@@ -68,6 +69,13 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
     window.addEventListener("mouseup", onUp);
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
   }, [subject]);
+
+  useEffect(() => {
+    if (!fgRef.current || nodes.length === 0) return;
+    fgRef.current.d3Force("charge").strength(-200);
+    fgRef.current.d3Force("link")?.distance(60);
+    fgRef.current.d3ReheatSimulation();
+  }, [nodes]);
 
   const maxVc = Math.max(...nodes.map((n) => n.viewCount), 1);
 
@@ -243,6 +251,7 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
         {/* Graph */}
         <div style={{ background: "#1e1e1e", position: "relative" }}>
           <ForceGraph2D
+            ref={fgRef}
             graphData={{ nodes, links }}
             nodeLabel="title"
             pixelRatio={window.devicePixelRatio}
@@ -253,6 +262,7 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
             height={overlay ? 220 : 180}
             onNodeClick={handleNodeClick}
             backgroundColor="#1e1e1e"
+            warmupTicks={50}
           />
 
           {overlay && topPost && (

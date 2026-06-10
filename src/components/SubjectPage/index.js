@@ -31,7 +31,15 @@ function SubjectPage() {
   const [links, setLinks] = useState([]);
   const [topPost, setTopPost] = useState(null);
   const containerRef = useRef(null);
+  const fgRef = useRef(null);
   const [graphWidth, setGraphWidth] = useState(600);
+
+  useEffect(() => {
+    if (!fgRef.current || nodes.length === 0) return;
+    fgRef.current.d3Force("charge").strength(-200);
+    fgRef.current.d3Force("link")?.distance(60);
+    fgRef.current.d3ReheatSimulation();
+  }, [nodes]);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -144,6 +152,7 @@ function SubjectPage() {
               >
                 <div ref={containerRef}>
                   <ForceGraph2D
+                    ref={fgRef}
                     graphData={{ nodes, links }}
                     width={graphWidth}
                     height={280}
@@ -154,6 +163,11 @@ function SubjectPage() {
                     linkColor={() => "rgba(22, 157, 211, 0.4)"}
                     onNodeClick={(node) => navigate(`/post/${node.id}`)}
                     backgroundColor="#1a1a1a"
+                    onEngineStop={() => {}}
+                    d3AlphaDecay={0.02}
+                    d3VelocityDecay={0.3}
+                    warmupTicks={100}
+                    cooldownTicks={0}
                   />
                 </div>
 
