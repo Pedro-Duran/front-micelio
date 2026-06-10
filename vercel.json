@@ -5,7 +5,7 @@
     }
   },
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://https://micelio-gz1t.onrender.com/api/:path*" },
+    { "source": "/api/:path*", "destination": "https://micelio-gz1t.onrender.com/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
