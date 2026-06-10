@@ -30,9 +30,16 @@ export const authFetch = async (url, options = {}) => {
 };
 
 // For multipart/form-data — do NOT set Content-Type, browser adds boundary automatically
-export const authFetchMultipart = (url, formData) => {
+export const authFetchMultipart = async (url, formData) => {
   const token = localStorage.getItem("micelio_token");
   const headers = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  return fetch(url, { method: "POST", headers, body: formData });
+  const res = await fetch(url, { method: "POST", headers, body: formData, redirect: "manual" });
+  if (res.type === "opaqueredirect") {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  return res;
 };

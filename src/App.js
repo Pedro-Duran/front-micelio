@@ -4,10 +4,12 @@ import Cabecalho from "./components/Cabecalho";
 import SubjectsSidebar from "./components/SubjectsSidebar";
 import SubjectCard from "./components/SubjectCard";
 import { authFetch, parsePage } from "./utils/api";
+import { useAuth } from "./context/AuthContext";
 
 function App() {
   const [groupedNodes, setGroupedNodes] = useState({});
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
 
   useEffect(() => {
     Promise.all([
@@ -15,7 +17,7 @@ function App() {
         if (!r.ok) throw new Error("Erro ao buscar posts");
         return r.json();
       }).then((d) => parsePage(d).content),
-      authFetch("/api/events/summary").then((r) => r.json()).catch(() => []),
+      authFetch("/api/events/summary").then((r) => r.ok ? r.json() : []).catch(() => []),
     ]).then(([postsData, summaryData]) => {
       const vcMap = {};
       summaryData.forEach((s) => { vcMap[s.postId] = s.viewCount || 0; });
@@ -30,7 +32,25 @@ function App() {
         (p) => !p.isStub || !writtenTitles.has(p.title?.toLowerCase().trim())
       );
 
-      const nodes = dedupedPosts.map((post) => {
+      let visiblePosts = dedupedPosts;
+      if (!isLoggedIn) {
+        const countByUser = {};
+        dedupedPosts.forEach((p) => {
+          if (!p.isStub) {
+            const u = p.authorUsername || p.author?.username;
+            if (u) countByUser[u] = (countByUser[u] || 0) + 1;
+          }
+        });
+        const topUser = Object.entries(countByUser).sort((a, b) => b[1] - a[1])[0]?.[0];
+        if (topUser) {
+          visiblePosts = dedupedPosts.filter((p) => {
+            const u = p.authorUsername || p.author?.username;
+            return u === topUser;
+          });
+        }
+      }
+
+      const nodes = visiblePosts.map((post) => {
         const subjs = getSubjs(post);
         return {
           id: post.id,
@@ -46,7 +66,7 @@ function App() {
       });
 
       const links = [];
-      dedupedPosts.forEach((post) => {
+      visiblePosts.forEach((post) => {
         if (Array.isArray(post.links)) {
           post.links.forEach((linkedId) => links.push({ source: post.id, target: linkedId }));
         }
@@ -70,7 +90,7 @@ function App() {
 
       setGroupedNodes(grouped);
     }).catch((err) => console.error(err));
-  }, []);
+  }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
