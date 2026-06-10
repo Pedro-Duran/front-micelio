@@ -101,7 +101,14 @@ function PostPage() {
         const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
           ? p.subjects : (p.subject ? [p.subject] : []);
 
-        const nodes = data.map((p) => ({
+        const writtenTitles = new Set(
+          data.filter((p) => !p.isStub).map((p) => p.title?.toLowerCase().trim()).filter(Boolean)
+        );
+        const dedupedData = data.filter(
+          (p) => !p.isStub || !writtenTitles.has(p.title?.toLowerCase().trim())
+        );
+
+        const nodes = dedupedData.map((p) => ({
           id: p.id,
           title: p.title || "Sem título",
           content: p.content || "",
@@ -116,7 +123,7 @@ function PostPage() {
         }));
 
         const links = [];
-        data.forEach((p) => {
+        dedupedData.forEach((p) => {
           if (Array.isArray(p.links)) {
             p.links.forEach((linkedId) => {
               links.push({ source: p.id, target: linkedId });
@@ -134,7 +141,7 @@ function PostPage() {
           setEditedContent(current.content);
           setEditedSubjects(current.subjects?.length > 0 ? current.subjects : (current.subject ? [current.subject] : []));
         }
-        const rawPost = data.find((p) => p.id === postId);
+        const rawPost = dedupedData.find((p) => p.id === postId);
         if (rawPost) {
           setLikeCount(rawPost.likeCount || 0);
           setLikedByMe(rawPost.likedByMe || false);

@@ -85,6 +85,7 @@ function App() {
             gap: "20px",
             padding: "20px",
             alignContent: "flex-start",
+            alignItems: "flex-start",
           }}
         >
           {Object.entries(groupedNodes).map(([subject, { nodes, links }]) => (

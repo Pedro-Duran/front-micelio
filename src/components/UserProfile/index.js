@@ -284,7 +284,7 @@ function UserProfile() {
           ) : Object.keys(groupedSubjects).length === 0 ? (
             <p style={{ color: "#444", fontSize: "14px" }}>{t("userProfile.noPosts")}</p>
           ) : (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", alignContent: "flex-start" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", alignContent: "flex-start", alignItems: "flex-start" }}>
               {Object.entries(groupedSubjects).map(([subject, { nodes, links }]) => (
                 <SubjectCard
                   key={subject}
