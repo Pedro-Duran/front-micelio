@@ -12,6 +12,7 @@ function Login() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
@@ -20,6 +21,7 @@ function Login() {
     setUsername("");
     setEmail("");
     setPassword("");
+    setConfirmPassword("");
     setError("");
     setForgotSent(false);
     setMode(nextMode);
@@ -32,6 +34,11 @@ function Login() {
 
     try {
       if (mode === "register") {
+        if (password !== confirmPassword) {
+          setError(t("auth.passwordMismatch"));
+          setIsLoading(false);
+          return;
+        }
         const body = { username, password, email: email.trim() };
         const res = await fetch("/api/users/createUser", {
           method: "POST",
@@ -171,6 +178,26 @@ function Login() {
               <label style={{ color: "#888", fontSize: "12px" }}>{t("auth.password")}</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete={isRegister ? "new-password" : "current-password"} style={inputStyle} />
             </div>
+
+            {isRegister && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ color: "#888", fontSize: "12px" }}>{t("auth.confirmPassword")}</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  style={{
+                    ...inputStyle,
+                    borderColor: confirmPassword && confirmPassword !== password ? "#f44336" : inputStyle.borderColor,
+                  }}
+                />
+                {confirmPassword && confirmPassword !== password && (
+                  <span style={{ color: "#f44336", fontSize: "11px" }}>{t("auth.passwordMismatch")}</span>
+                )}
+              </div>
+            )}
 
             {error && <p style={{ color: "#f44336", fontSize: "13px", margin: 0 }}>{error}</p>}
 

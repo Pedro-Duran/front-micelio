@@ -48,7 +48,9 @@
     "createAndLogin": "Create account and sign in",
     "creating": "Creating account...",
     "logging": "Signing in...",
-    "authenticating": "Authenticating..."
+    "authenticating": "Authenticating...",
+    "confirmPassword": "Confirm password",
+    "passwordMismatch": "Passwords do not match."
   },
   "comments": {
     "loginToComment": "Sign in to comment",
@@ -183,7 +185,15 @@
     "inThisTopic": "In this topic",
     "posts": "Posts",
     "post_one": "{{count}} post",
-    "post_other": "{{count}} posts"
+    "post_other": "{{count}} posts",
+    "saveRename": "Save",
+    "cancelRename": "Cancel",
+    "deleteConfirmTitle": "Delete topic",
+    "deleteConfirmMsg": "Deleting \"{{subject}}\" will permanently remove all posts in it. This cannot be undone.",
+    "confirmDelete": "Yes, delete everything",
+    "cancel": "Cancel",
+    "renameError": "Error renaming topic.",
+    "deleteError": "Error deleting topic."
   },
   "sidebar": {
     "categories": "Topics",

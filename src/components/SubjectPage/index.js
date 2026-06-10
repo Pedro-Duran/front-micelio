@@ -4,6 +4,7 @@ import { ForceGraph2D } from "react-force-graph";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
 import { authFetch, parsePage } from "../../utils/api";
+import { useAuth } from "../../context/AuthContext";
 import { useTranslation } from "react-i18next";
 
 function lerpColor(t) {
@@ -34,6 +35,11 @@ function SubjectPage() {
   const fgRef = useRef(null);
   const [graphWidth, setGraphWidth] = useState(600);
 
+  const [editingName, setEditingName] = useState(false);
+  const [newName, setNewName] = useState(subject);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
   useEffect(() => {
     if (!fgRef.current || nodes.length === 0) return;
     fgRef.current.d3Force("charge").strength(-200);
@@ -42,6 +48,41 @@ function SubjectPage() {
   }, [nodes]);
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { isLoggedIn } = useAuth();
+
+  const handleRename = async () => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === subject) { setEditingName(false); return; }
+    setActionLoading(true);
+    try {
+      const res = await authFetch(`/api/posts/subjects/${encodeURIComponent(subject)}`, {
+        method: "PUT",
+        body: JSON.stringify({ newName: trimmed }),
+      });
+      if (!res.ok) throw new Error();
+      navigate(`/subject/${encodeURIComponent(trimmed)}`, { replace: true });
+    } catch {
+      alert(t("subjectPage.renameError"));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setActionLoading(true);
+    try {
+      const res = await authFetch(`/api/posts/subjects/${encodeURIComponent(subject)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error();
+      navigate("/", { replace: true });
+    } catch {
+      alert(t("subjectPage.deleteError"));
+    } finally {
+      setActionLoading(false);
+      setDeleteConfirm(false);
+    }
+  };
 
   useEffect(() => {
     Promise.all([
@@ -134,12 +175,88 @@ function SubjectPage() {
   return (
     <>
       <Cabecalho />
+
+      {/* Delete confirmation modal */}
+      {deleteConfirm && (
+        <div
+          onClick={() => setDeleteConfirm(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "#242424", border: "1px solid #3a3a3a", borderRadius: "8px", padding: "28px 32px", width: "380px", display: "flex", flexDirection: "column", gap: "16px" }}
+          >
+            <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "16px" }}>{t("subjectPage.deleteConfirmTitle")}</h3>
+            <p style={{ color: "#aaa", fontSize: "13px", lineHeight: "1.6", margin: 0 }}>
+              {t("subjectPage.deleteConfirmMsg", { subject })}
+            </p>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setDeleteConfirm(false)}
+                style={{ background: "none", border: "1px solid #444", borderRadius: "4px", color: "#888", cursor: "pointer", padding: "8px 18px", fontSize: "13px" }}
+              >
+                {t("subjectPage.cancel")}
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={actionLoading}
+                style={{ background: "#c62828", border: "none", borderRadius: "4px", color: "#fff", cursor: actionLoading ? "default" : "pointer", padding: "8px 18px", fontSize: "13px", fontWeight: "bold" }}
+              >
+                {actionLoading ? "..." : t("subjectPage.confirmDelete")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", background: "#1e1e1e", minHeight: "calc(100vh - 60px)" }}>
         <SubjectsSidebar />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
           <div style={{ padding: "24px 32px 16px", borderBottom: "1px solid #2a2a2a" }}>
-            <h1 style={{ color: "#e0e0e0", margin: 0, fontSize: "22px" }}>{subject}</h1>
+            {editingName ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") setEditingName(false); }}
+                  autoFocus
+                  style={{ background: "#1a1a1a", border: "1px solid #4fc3f7", borderRadius: "4px", color: "#e0e0e0", fontSize: "20px", fontWeight: "bold", padding: "4px 10px", outline: "none", minWidth: "200px" }}
+                />
+                <button onClick={handleRename} disabled={actionLoading} style={{ background: "#4fc3f7", border: "none", borderRadius: "4px", color: "#000", cursor: "pointer", padding: "5px 14px", fontSize: "13px", fontWeight: "bold" }}>
+                  {actionLoading ? "..." : t("subjectPage.saveRename")}
+                </button>
+                <button onClick={() => { setEditingName(false); setNewName(subject); }} style={{ background: "none", border: "1px solid #444", borderRadius: "4px", color: "#888", cursor: "pointer", padding: "5px 12px", fontSize: "13px" }}>
+                  {t("subjectPage.cancelRename")}
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <h1 style={{ color: "#e0e0e0", margin: 0, fontSize: "22px" }}>{subject}</h1>
+                {isLoggedIn && (
+                  <>
+                    <button
+                      onClick={() => { setNewName(subject); setEditingName(true); }}
+                      title="Renomear"
+                      style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "15px", padding: "2px 4px", lineHeight: 1 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; }}
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirm(true)}
+                      title="Excluir tópico"
+                      style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "15px", padding: "2px 4px", lineHeight: 1 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "#ef5350"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; }}
+                    >
+                      🗑️
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
             <p style={{ color: "#555", fontSize: "13px", margin: "4px 0 0" }}>
               {t("subjectPage.post", { count: nodes.length })}
             </p>
