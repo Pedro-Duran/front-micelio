@@ -56,7 +56,14 @@ function SubjectPage() {
           ? p.subjects
           : p.subject ? [p.subject] : [t("sidebar.noCategory")];
 
-      const subjectNodes = postsData
+      const writtenTitles = new Set(
+        postsData.filter((p) => !p.isStub).map((p) => p.title?.toLowerCase().trim()).filter(Boolean)
+      );
+      const dedupedPosts = postsData.filter(
+        (p) => !p.isStub || !writtenTitles.has(p.title?.toLowerCase().trim())
+      );
+
+      const subjectNodes = dedupedPosts
         .filter((p) => getSubjs(p).includes(subject))
         .map((p) => ({
           id: p.id,
@@ -68,7 +75,7 @@ function SubjectPage() {
 
       const subjectIds = new Set(subjectNodes.map((n) => n.id));
       const subjectLinks = [];
-      postsData.forEach((p) => {
+      dedupedPosts.forEach((p) => {
         if (Array.isArray(p.links)) {
           p.links.forEach((linkedId) => {
             if (subjectIds.has(p.id) && subjectIds.has(linkedId)) {

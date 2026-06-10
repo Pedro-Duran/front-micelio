@@ -80,7 +80,13 @@ function UserProfile() {
         return p.isStub && author === username && !searchIds.has(p.id);
       });
 
-      const posts = [...searchPosts, ...missingStubs];
+      const rawPosts = [...searchPosts, ...missingStubs];
+      const writtenTitles = new Set(
+        rawPosts.filter((p) => !p.isStub).map((p) => p.title?.toLowerCase().trim()).filter(Boolean)
+      );
+      const posts = rawPosts.filter(
+        (p) => !p.isStub || !writtenTitles.has(p.title?.toLowerCase().trim())
+      );
 
       const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
         ? p.subjects : (p.subject ? [p.subject] : [t("sidebar.noCategory")]);

@@ -23,7 +23,14 @@ function App() {
       const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
         ? p.subjects : (p.subject ? [p.subject] : ["Sem categoria"]);
 
-      const nodes = postsData.map((post) => {
+      const writtenTitles = new Set(
+        postsData.filter((p) => !p.isStub).map((p) => p.title?.toLowerCase().trim()).filter(Boolean)
+      );
+      const dedupedPosts = postsData.filter(
+        (p) => !p.isStub || !writtenTitles.has(p.title?.toLowerCase().trim())
+      );
+
+      const nodes = dedupedPosts.map((post) => {
         const subjs = getSubjs(post);
         return {
           id: post.id,
@@ -39,7 +46,7 @@ function App() {
       });
 
       const links = [];
-      postsData.forEach((post) => {
+      dedupedPosts.forEach((post) => {
         if (Array.isArray(post.links)) {
           post.links.forEach((linkedId) => links.push({ source: post.id, target: linkedId }));
         }
