@@ -369,6 +369,7 @@ function PostPage() {
     setPendingWikilinks(null);
     const newWikilinks = parseWikilinks(editedContent);
     const transitioningFromStub = post.isStub && editedContent.trim().length > 0;
+    const becomingStub = !post.isStub && editedContent.trim().length === 0;
 
     const body = {
       id: postId,
@@ -377,7 +378,7 @@ function PostPage() {
       links: [],
       wikilinks: wikilinkAssignments,
       subjects: editedSubjects,
-      ...(transitioningFromStub ? { isStub: false } : {}),
+      ...(transitioningFromStub ? { isStub: false } : becomingStub ? { isStub: true } : {}),
     };
 
     try {
@@ -686,7 +687,7 @@ function PostPage() {
                     </button>
                   )}
                   <button onClick={openTimeline} title={t("postPage.viewTimeline")} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>🎬</button>
-                  {isLoggedIn && (
+                  {isLoggedIn && post.author === currentUsername && (
                     <>
                       <button onClick={() => setEditMode(true)} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>✏️</button>
                       <button onClick={handleDelete} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>🗑️</button>
@@ -821,7 +822,8 @@ function PostPage() {
                 width={228}
                 height={220}
                 onNodeClick={(node) => {
-                  if (node.isStub && node.authorUsername !== currentUsername) { setStubModal({ id: node.id, title: node.title }); return; }
+                  const ownsNode = !!(currentUsername && node.authorUsername === currentUsername);
+                  if (node.isStub && !ownsNode) { setStubModal({ id: node.id, title: node.title }); return; }
                   registerEvent({ postId: node.id, eventType: "CLICK_NODE" });
                   goToPost(node.id);
                 }}
@@ -868,6 +870,8 @@ function PostPage() {
                         <li key={node.id}>
                           <button
                             onClick={() => {
+                              const ownsNode = !!(currentUsername && node.authorUsername === currentUsername);
+                              if (node.isStub && !ownsNode) { setStubModal({ id: node.id, title: node.title }); return; }
                               registerEvent({ postId: node.id, eventType: "CLICK_NODE" });
                               goToPost(node.id);
                             }}

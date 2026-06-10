@@ -37,7 +37,8 @@ function FeedPage() {
       .catch(() => ({}))
       .then((raw) => {
         const { content, isLast } = parsePage(raw);
-        setPosts((prev) => (page === 0 ? content : [...prev, ...content]));
+        const filtered = tab === "explore" ? content.filter((p) => !p.isStub) : content;
+        setPosts((prev) => (page === 0 ? filtered : [...prev, ...filtered]));
         setHasMore(!isLast);
         setLoading(false);
       });
