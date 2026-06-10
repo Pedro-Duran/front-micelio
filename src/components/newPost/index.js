@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import MDEditor from "@uiw/react-md-editor";
 import Cabecalho from "../Cabecalho";
 import WikilinkSubjectsModal from "../WikilinkSubjectsModal";
-import { authFetch } from "../../utils/api";
+import { authFetch, authFetchMultipart } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import { useTranslation } from "react-i18next";
 
@@ -35,6 +35,66 @@ function NovoPost() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [subjectError, setSubjectError] = useState(false);
   const [pendingWikilinks, setPendingWikilinks] = useState(null);
+
+  const imageInputRef = useRef(null);
+  const editorApiRef = useRef(null);
+
+  const imageUploadCommand = {
+    name: "upload-image",
+    keyCommand: "upload-image",
+    buttonProps: { "aria-label": "Upload image" },
+    icon: (
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+        <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
+      </svg>
+    ),
+    execute: (_state, api) => {
+      editorApiRef.current = api;
+      imageInputRef.current?.click();
+    },
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await authFetchMultipart("/api/posts/images", formData);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      editorApiRef.current?.replaceSelection(`![${file.name}](${data.url})`);
+    } catch {
+      alert(t("postPage.imageError"));
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  useEffect(() => {
+    const handlePaste = async (e) => {
+      const items = Array.from(e.clipboardData?.items || []);
+      const imageItem = items.find((i) => i.type.startsWith("image/"));
+      if (!imageItem) return;
+      if (!document.activeElement?.closest?.(".w-md-editor")) return;
+      e.preventDefault();
+      const file = imageItem.getAsFile();
+      if (!file) return;
+      const formData = new FormData();
+      formData.append("file", file);
+      try {
+        const res = await authFetchMultipart("/api/posts/images", formData);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        document.execCommand("insertText", false, `![image](${data.url})`);
+      } catch {
+        alert(t("postPage.imageError"));
+      }
+    };
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetch("/api/posts/subjects")
@@ -202,6 +262,13 @@ function NovoPost() {
                 {t("newPost.preInsertedRef", { text: refTitle })}
               </p>
             )}
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              style={{ display: "none" }}
+              onChange={handleImageUpload}
+            />
             <div data-color-mode="dark">
               <MDEditor
                 value={content}
@@ -210,6 +277,7 @@ function NovoPost() {
                   else setContent(v || "");
                 }}
                 height={400}
+                extraCommands={[imageUploadCommand]}
               />
             </div>
           </div>

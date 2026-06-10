@@ -67,6 +67,66 @@ function PostPage() {
   const bannerIsDraggingRef = useRef(false);
   const bannerDragStartRef = useRef({ clientY: 0, pos: 50 });
 
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem("postSidebarWidth");
+    return saved ? Number(saved) : 280;
+  });
+  const sidebarDragging = useRef(false);
+  const sidebarDragStartX = useRef(0);
+  const sidebarDragStartW = useRef(0);
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!sidebarDragging.current) return;
+      const next = Math.min(600, Math.max(200, sidebarDragStartW.current + (sidebarDragStartX.current - e.clientX)));
+      setSidebarWidth(next);
+    };
+    const onUp = () => {
+      if (!sidebarDragging.current) return;
+      sidebarDragging.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      setSidebarWidth((w) => { localStorage.setItem("postSidebarWidth", String(w)); return w; });
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+  }, []);
+
+  // Close lightbox with Escape
+  useEffect(() => {
+    if (!lightboxSrc) return;
+    const onKey = (e) => { if (e.key === "Escape") setLightboxSrc(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightboxSrc]);
+
+  // Ctrl+V image paste in edit mode
+  useEffect(() => {
+    if (!editMode) return;
+    const handlePaste = async (e) => {
+      const items = Array.from(e.clipboardData?.items || []);
+      const imageItem = items.find((i) => i.type.startsWith("image/"));
+      if (!imageItem) return;
+      if (!document.activeElement?.closest?.(".w-md-editor")) return;
+      e.preventDefault();
+      const file = imageItem.getAsFile();
+      if (!file) return;
+      const formData = new FormData();
+      formData.append("file", file);
+      try {
+        const res = await authFetchMultipart("/api/posts/images", formData);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        document.execCommand("insertText", false, `![image](${data.url})`);
+      } catch {
+        alert(t("postPage.imageError"));
+      }
+    };
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [editMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     fetch("/api/posts/subjects")
       .then((r) => (r.ok ? r.json() : []))
@@ -806,8 +866,22 @@ function PostPage() {
         {/* Sidebar */}
         <div
           ref={sidebarRef}
-          style={{ width: "260px", borderLeft: "1px solid #2a2a2a", padding: "16px", display: "flex", flexDirection: "column", gap: "10px", flexShrink: 0 }}
+          style={{ width: `${sidebarWidth}px`, borderLeft: "1px solid #2a2a2a", padding: "16px", display: "flex", flexDirection: "column", gap: "10px", flexShrink: 0, position: "relative" }}
         >
+          {/* Drag handle — left edge */}
+          <div
+            onMouseDown={(e) => {
+              e.preventDefault();
+              sidebarDragging.current = true;
+              sidebarDragStartX.current = e.clientX;
+              sidebarDragStartW.current = sidebarWidth;
+              document.body.style.cursor = "col-resize";
+              document.body.style.userSelect = "none";
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(79,195,247,0.15)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            style={{ position: "absolute", top: 0, left: 0, width: "6px", height: "100%", cursor: "col-resize", zIndex: 10 }}
+          />
           {sidebarMode === "graph" ? (
             <>
               {fromPost && (
@@ -840,7 +914,7 @@ function PostPage() {
                 nodeLabel="title"
                 pixelRatio={window.devicePixelRatio}
                 linkColor={() => "rgba(22, 157, 211, 0.4)"}
-                width={228}
+                width={sidebarWidth - 32}
                 height={220}
                 onNodeClick={(node) => {
                   const ownsNode = !!(currentUsername && node.authorUsername === currentUsername);

@@ -14,7 +14,8 @@ export const parsePage = (data) => {
 
 export const authFetch = async (url, options = {}) => {
   const token = localStorage.getItem("micelio_token");
-  const headers = { "Content-Type": "application/json", ...options.headers };
+  const headers = { ...options.headers };
+  if (options.body) headers["Content-Type"] = "application/json";
   if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(url, { ...options, headers, redirect: "manual" });
   // Spring Security redireciona para /oauth2/authorization/google em vez de retornar 401.
