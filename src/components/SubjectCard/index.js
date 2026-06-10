@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { ForceGraph2D } from "react-force-graph";
 import { Link, useNavigate } from "react-router-dom";
 import StubModal from "../StubModal";
@@ -23,12 +23,51 @@ function stripMarkdown(text) {
     .trim();
 }
 
+const MIN_W = 200;
+const MAX_W = 600;
+const DEFAULT_W = 300;
+
 function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOwner = false }) {
   const navigate = useNavigate();
   const { username: currentUsername } = useAuth();
   const { t } = useTranslation();
   const [showList, setShowList] = useState(false);
-  const [stubModal, setStubModal] = useState(null); // { id, title }
+  const [stubModal, setStubModal] = useState(null);
+
+  const [cardWidth, setCardWidth] = useState(() => {
+    const saved = localStorage.getItem(`cardWidth_${subject}`);
+    return saved ? Number(saved) : DEFAULT_W;
+  });
+  const draggingCard = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartW = useRef(0);
+
+  const onHandleMouseDown = useCallback((e) => {
+    e.preventDefault();
+    draggingCard.current = true;
+    dragStartX.current = e.clientX;
+    dragStartW.current = cardWidth;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, [cardWidth]);
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!draggingCard.current) return;
+      const next = Math.min(MAX_W, Math.max(MIN_W, dragStartW.current + e.clientX - dragStartX.current));
+      setCardWidth(next);
+    };
+    const onUp = () => {
+      if (!draggingCard.current) return;
+      draggingCard.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      setCardWidth((w) => { localStorage.setItem(`cardWidth_${subject}`, String(w)); return w; });
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+  }, [subject]);
 
   const maxVc = Math.max(...nodes.map((n) => n.viewCount), 1);
 
@@ -140,13 +179,14 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
 
       <div
         style={{
-          width: "300px",
+          width: `${cardWidth}px`,
           background: "#242424",
           borderRadius: "8px",
           border: "1px solid #2e2e2e",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
+          position: "relative",
         }}
       >
         {/* Header — fixed height so all cards are uniform regardless of title length or cover */}
@@ -209,7 +249,7 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
             nodeCanvasObject={paintNode}
             nodeCanvasObjectMode={() => "replace"}
             linkColor={() => "rgba(22, 157, 211, 0.4)"}
-            width={300}
+            width={cardWidth}
             height={overlay ? 220 : 180}
             onNodeClick={handleNodeClick}
             backgroundColor="#1e1e1e"
@@ -293,6 +333,13 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
             ))}
           </ul>
         )}
+        {/* drag handle */}
+        <div
+          onMouseDown={onHandleMouseDown}
+          style={{ position: "absolute", top: 0, right: 0, width: "6px", height: "100%", cursor: "col-resize", zIndex: 10 }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(79,195,247,0.15)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+        />
       </div>
     </>
   );
