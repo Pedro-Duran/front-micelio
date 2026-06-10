@@ -39,6 +39,8 @@ function SubjectPage() {
   const [newName, setNewName] = useState(subject);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [headerHover, setHeaderHover] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!fgRef.current || nodes.length === 0) return;
@@ -49,6 +51,12 @@ function SubjectPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { isLoggedIn } = useAuth();
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleRename = async () => {
     const trimmed = newName.trim();
@@ -221,37 +229,73 @@ function SubjectPage() {
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") setEditingName(false); }}
                   autoFocus
-                  style={{ background: "#1a1a1a", border: "1px solid #4fc3f7", borderRadius: "4px", color: "#e0e0e0", fontSize: "20px", fontWeight: "bold", padding: "4px 10px", outline: "none", minWidth: "200px" }}
+                  style={{ background: "transparent", border: "none", borderBottom: "1px solid #4fc3f7", color: "#e0e0e0", fontSize: "22px", fontWeight: "bold", padding: "0 2px 2px", outline: "none", minWidth: "200px" }}
                 />
-                <button onClick={handleRename} disabled={actionLoading} style={{ background: "#4fc3f7", border: "none", borderRadius: "4px", color: "#000", cursor: "pointer", padding: "5px 14px", fontSize: "13px", fontWeight: "bold" }}>
-                  {actionLoading ? "..." : t("subjectPage.saveRename")}
+                <button onClick={handleRename} disabled={actionLoading} style={{ background: "none", border: "none", color: "#4fc3f7", cursor: "pointer", padding: "0 2px", fontSize: "13px", opacity: actionLoading ? 0.5 : 1 }}>
+                  {actionLoading ? "…" : t("subjectPage.saveRename")}
                 </button>
-                <button onClick={() => { setEditingName(false); setNewName(subject); }} style={{ background: "none", border: "1px solid #444", borderRadius: "4px", color: "#888", cursor: "pointer", padding: "5px 12px", fontSize: "13px" }}>
+                <button onClick={() => { setEditingName(false); setNewName(subject); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "0 2px", fontSize: "13px" }}>
                   {t("subjectPage.cancelRename")}
                 </button>
               </div>
             ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <h1 style={{ color: "#e0e0e0", margin: 0, fontSize: "22px" }}>{subject}</h1>
+              <div
+                onMouseEnter={() => setHeaderHover(true)}
+                onMouseLeave={() => setHeaderHover(false)}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <h1 style={{ color: "#e0e0e0", margin: 0, fontSize: "22px", fontWeight: "600" }}>{subject}</h1>
+
+                {/* Share — visible to all */}
+                <button
+                  onClick={handleShare}
+                  title={copied ? t("share.copied") : t("share.copyLink")}
+                  style={{ background: "none", border: "none", color: copied ? "#4fc3f7" : "#555", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center", opacity: headerHover || copied ? 1 : 0, transition: "opacity 0.15s, color 0.15s", borderRadius: "4px" }}
+                  onMouseEnter={(e) => { if (!copied) e.currentTarget.style.color = "#4fc3f7"; }}
+                  onMouseLeave={(e) => { if (!copied) e.currentTarget.style.color = "#555"; }}
+                >
+                  {copied ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20,6 9,17 4,12" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                  )}
+                </button>
+
                 {isLoggedIn && (
                   <>
+                    {/* Edit */}
                     <button
                       onClick={() => { setNewName(subject); setEditingName(true); }}
-                      title="Renomear"
-                      style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "15px", padding: "2px 4px", lineHeight: 1 }}
+                      title={t("common.edit")}
+                      style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center", opacity: headerHover ? 1 : 0, transition: "opacity 0.15s, color 0.15s", borderRadius: "4px" }}
                       onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; }}
                     >
-                      ✏️
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
                     </button>
+
+                    {/* Delete */}
                     <button
                       onClick={() => setDeleteConfirm(true)}
-                      title="Excluir tópico"
-                      style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "15px", padding: "2px 4px", lineHeight: 1 }}
+                      title={t("common.delete")}
+                      style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center", opacity: headerHover ? 1 : 0, transition: "opacity 0.15s, color 0.15s", borderRadius: "4px" }}
                       onMouseEnter={(e) => { e.currentTarget.style.color = "#ef5350"; }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; }}
                     >
-                      🗑️
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3,6 5,6 21,6" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <path d="M10 11v6M14 11v6" />
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                      </svg>
                     </button>
                   </>
                 )}
