@@ -43,8 +43,13 @@ function SubjectPage() {
       const vcMap = {};
       summaryData.forEach((s) => { vcMap[s.postId] = s.viewCount || 0; });
 
+      const getSubjs = (p) =>
+        Array.isArray(p.subjects) && p.subjects.length > 0
+          ? p.subjects
+          : p.subject ? [p.subject] : [t("sidebar.noCategory")];
+
       const subjectNodes = postsData
-        .filter((p) => (p.subject || t("sidebar.noCategory")) === subject)
+        .filter((p) => getSubjs(p).includes(subject))
         .map((p) => ({
           id: p.id,
           title: p.title || t("sidebar.noCategory"),
