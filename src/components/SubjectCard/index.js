@@ -147,20 +147,27 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
 
   const handleNodeClick = (node) => {
     const ownsNode = isOwner || (currentUsername && node.authorUsername === currentUsername);
-    if (node.isStub && !ownsNode) {
-      const subscribedByMe = node.id in subOverride ? subOverride[node.id] : (node.subscribedByMe || false);
-      setStubModal({ id: node.id, title: node.title, subscribedByMe });
-      return;
+    if (node.isStub) {
+      // Tutorial stubs are non-interactive for everyone except "puredo"
+      if (subject === "Tutorial" && currentUsername !== "puredo") return;
+      if (!ownsNode) {
+        const subscribedByMe = node.id in subOverride ? subOverride[node.id] : (node.subscribedByMe || false);
+        setStubModal({ id: node.id, title: node.title, subscribedByMe });
+        return;
+      }
     }
     onNodeClick(node);
   };
 
   const paintNode = (node, ctx, globalScale) => {
-    const radius = node.isStub ? 3 : 5;
+    const isWelcome = node.title === "Bem-vindo ao Blog";
+    const radius = node.isStub ? 3 : isWelcome ? 7 : 5;
     ctx.beginPath();
     ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
     ctx.fillStyle = node.isStub
       ? "rgba(100, 150, 200, 0.35)"
+      : isWelcome
+      ? "#FFD54F"
       : (authorColorMap[node.authorUsername] || lerpColor(node.viewCount / maxVc));
     ctx.fill();
 

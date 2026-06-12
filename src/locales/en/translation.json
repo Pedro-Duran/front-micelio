@@ -83,6 +83,7 @@
     "title": "New post",
     "selectCategories": "Select categories",
     "newCategory": "New category...",
+    "selectFromExisting": "Select from list...",
     "confirm": "Confirm",
     "confirmPublish": "Confirm and publish",
     "titlePlaceholder": "Title",

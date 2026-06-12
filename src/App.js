@@ -8,8 +8,17 @@ import { useAuth } from "./context/AuthContext";
 
 function App() {
   const [groupedNodes, setGroupedNodes] = useState({});
+  const [pinnedSubjects, setPinnedSubjects] = useState([]);
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
+
+  useEffect(() => {
+    if (!isLoggedIn) { setPinnedSubjects([]); return; }
+    authFetch("/api/users/subjects/pinned")
+      .then((r) => r.ok ? r.json() : [])
+      .catch(() => [])
+      .then((data) => setPinnedSubjects(Array.isArray(data) ? data : []));
+  }, [isLoggedIn]);
 
   useEffect(() => {
     Promise.all([
@@ -109,16 +118,31 @@ function App() {
             alignItems: "flex-start",
           }}
         >
-          {Object.entries(groupedNodes).map(([subject, { nodes, links }]) => (
-            <SubjectCard
-              key={subject}
-              subject={subject}
-              nodes={nodes}
-              links={links}
-              onNodeClick={(node) => navigate(`/post/${node.id}`)}
-              overlay
-            />
-          ))}
+          {Object.entries(groupedNodes)
+            .sort(([a], [b]) => {
+              const aPin = pinnedSubjects.indexOf(a);
+              const bPin = pinnedSubjects.indexOf(b);
+              const aPinned = aPin !== -1;
+              const bPinned = bPin !== -1;
+              if (aPinned && !bPinned) return -1;
+              if (!aPinned && bPinned) return 1;
+              if (aPinned && bPinned) return aPin - bPin;
+              if (!isLoggedIn) {
+                if (a === "Tutorial") return -1;
+                if (b === "Tutorial") return 1;
+              }
+              return 0;
+            })
+            .map(([subject, { nodes, links }]) => (
+              <SubjectCard
+                key={subject}
+                subject={subject}
+                nodes={nodes}
+                links={links}
+                onNodeClick={(node) => navigate(`/post/${node.id}`)}
+                overlay
+              />
+            ))}
         </div>
       </div>
     </>

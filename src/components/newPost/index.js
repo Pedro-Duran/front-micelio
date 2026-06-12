@@ -97,10 +97,20 @@ function NovoPost() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    fetch("/api/posts/subjects")
-      .then((r) => (r.ok ? r.json() : []))
-      .catch(() => [])
-      .then((data) => setAllSubjects(data));
+    const load = async () => {
+      try {
+        const res = await authFetch("/api/posts/subjects/mine");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) { setAllSubjects(data); return; }
+        }
+      } catch {}
+      try {
+        const res = await fetch("/api/posts/subjects");
+        if (res.ok) setAllSubjects(await res.json());
+      } catch {}
+    };
+    load();
   }, []);
 
   useEffect(() => {
@@ -190,46 +200,50 @@ function NovoPost() {
           >
             <h3 style={{ margin: 0, color: "#e0e0e0", fontSize: "15px" }}>{t("newPost.selectCategories")}</h3>
 
-            {allSubjects.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                {allSubjects.map((s) => {
-                  const sel = selectedSubjects.includes(s);
-                  return (
-                    <button
-                      key={s}
-                      onClick={() => toggleSubject(s)}
-                      style={{
-                        background: sel ? "#1d3a4a" : "none",
-                        border: `1px solid ${sel ? "#4fc3f7" : "#444"}`,
-                        borderRadius: "20px", color: sel ? "#4fc3f7" : "#666",
-                        padding: "5px 14px", fontSize: "12px", cursor: "pointer",
-                      }}
-                    >
-                      {s}
-                    </button>
-                  );
-                })}
+            {/* Selected chips */}
+            {selectedSubjects.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {selectedSubjects.map((s) => (
+                  <span key={s} style={{ background: "#1d3a4a", border: "1px solid #2a5a72", borderRadius: "20px", color: "#4fc3f7", padding: "4px 12px", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    {s}
+                    <button type="button" onClick={() => toggleSubject(s)} style={{ background: "none", border: "none", color: "#4fc3f7", cursor: "pointer", padding: 0, fontSize: "14px", lineHeight: 1 }}>×</button>
+                  </span>
+                ))}
               </div>
             )}
 
-            <div style={{ display: "flex", gap: "8px" }}>
-              <input
-                value={newSubjectInput}
-                onChange={(e) => setNewSubjectInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNewSubject(); } }}
-                placeholder={t("newPost.newCategory")}
-                style={{ flex: 1, background: "#1e1e1e", border: "1px solid #444", borderRadius: "4px", padding: "6px 10px", color: "#e0e0e0", fontSize: "13px", outline: "none" }}
-              />
-              <button
-                onClick={addNewSubject}
-                style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "6px 14px", cursor: "pointer", fontSize: "13px", fontWeight: "bold" }}
+            {/* Dropdown — author's subjects */}
+            {allSubjects.filter((s) => !selectedSubjects.includes(s)).length > 0 && (
+              <select
+                defaultValue=""
+                onChange={(e) => { if (e.target.value) { toggleSubject(e.target.value); e.target.value = ""; } }}
+                style={{ background: "#1e1e1e", border: "1px solid #444", borderRadius: "4px", color: "#ccc", padding: "7px 10px", fontSize: "13px", width: "100%", cursor: "pointer", outline: "none" }}
               >
-                +
-              </button>
-            </div>
+                <option value="" disabled>{t("newPost.selectFromExisting")}</option>
+                {allSubjects.filter((s) => !selectedSubjects.includes(s)).map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            )}
+
+            {/* New subject input */}
+            <input
+              value={newSubjectInput}
+              onChange={(e) => setNewSubjectInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const s = newSubjectInput.trim(); if (s && !selectedSubjects.includes(s)) setSelectedSubjects((p) => [...p, s]); setNewSubjectInput(""); } }}
+              placeholder={t("newPost.newCategory")}
+              style={{ background: "#1e1e1e", border: "1px solid #444", borderRadius: "4px", padding: "6px 10px", color: "#e0e0e0", fontSize: "13px", outline: "none", width: "100%", boxSizing: "border-box" }}
+            />
 
             <button
-              onClick={() => setShowSubjectModal(false)}
+              onClick={() => {
+                if (newSubjectInput.trim()) {
+                  const s = newSubjectInput.trim();
+                  if (!selectedSubjects.includes(s)) setSelectedSubjects((p) => [...p, s]);
+                  setNewSubjectInput("");
+                }
+                setShowSubjectModal(false);
+              }}
               style={{ background: "#4fc3f7", color: "#000", border: "none", borderRadius: "4px", padding: "9px", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}
             >
               {t("newPost.confirm")}

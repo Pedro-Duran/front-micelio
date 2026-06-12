@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
-import { parsePage } from "../../utils/api";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { parsePage, authFetch } from "../../utils/api";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { useTranslation } from "react-i18next";
 
 const MIN_WIDTH = 140;
@@ -9,8 +10,11 @@ const DEFAULT_WIDTH = 200;
 
 function SubjectsSidebar() {
   const [subjects, setSubjects] = useState([]);
+  const [pinnedSubjects, setPinnedSubjects] = useState([]); // ordered array of names
+  const [hoveredSubject, setHoveredSubject] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const { isLoggedIn } = useAuth();
   const { t } = useTranslation();
 
   const [width, setWidth] = useState(() => {
@@ -24,6 +28,7 @@ function SubjectsSidebar() {
   const pathMatch = location.pathname.match(/^\/subject\/(.+)$/);
   const activeSubject = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
 
+  // Load subjects
   useEffect(() => {
     fetch("/api/posts/verPosts")
       .then((r) => (r.ok ? r.json() : []))
@@ -40,6 +45,52 @@ function SubjectsSidebar() {
         setSubjects(Object.entries(counts).map(([name, count]) => ({ name, count })));
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load pinned subjects
+  useEffect(() => {
+    if (!isLoggedIn) { setPinnedSubjects([]); return; }
+    authFetch("/api/users/subjects/pinned")
+      .then((r) => r.ok ? r.json() : [])
+      .catch(() => [])
+      .then((data) => setPinnedSubjects(Array.isArray(data) ? data : []));
+  }, [isLoggedIn]);
+
+  const pinnedSet = useMemo(() => new Set(pinnedSubjects), [pinnedSubjects]);
+
+  const handleTogglePin = async (e, subjectName) => {
+    e.stopPropagation();
+    const isPinned = pinnedSet.has(subjectName);
+    if (isPinned) {
+      setPinnedSubjects((prev) => prev.filter((s) => s !== subjectName));
+      try {
+        await authFetch(`/api/users/subjects/pin/${encodeURIComponent(subjectName)}`, { method: "DELETE" });
+      } catch {
+        setPinnedSubjects((prev) => [...prev, subjectName]);
+      }
+    } else {
+      setPinnedSubjects((prev) => [...prev, subjectName]);
+      try {
+        await authFetch("/api/users/subjects/pin", {
+          method: "POST",
+          body: JSON.stringify({ subjectName }),
+        });
+      } catch {
+        setPinnedSubjects((prev) => prev.filter((s) => s !== subjectName));
+      }
+    }
+  };
+
+  const sortedSubjects = useMemo(() => {
+    const tutorial = subjects.find((s) => s.name === "Tutorial");
+    const pinned = pinnedSubjects
+      .map((name) => subjects.find((s) => s.name === name))
+      .filter(Boolean)
+      .filter((s) => s.name !== "Tutorial");
+    const rest = subjects.filter(
+      (s) => s.name !== "Tutorial" && !pinnedSet.has(s.name)
+    );
+    return [...(tutorial ? [tutorial] : []), ...pinned, ...rest];
+  }, [subjects, pinnedSubjects, pinnedSet]);
 
   const onMouseDown = useCallback((e) => {
     dragging.current = true;
@@ -83,6 +134,10 @@ function SubjectsSidebar() {
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "6px",
   });
 
   return (
@@ -95,12 +150,11 @@ function SubjectsSidebar() {
         display: "flex",
         flexDirection: "column",
         gap: "4px",
-        position: "sticky",
+        position: "relative",
         top: 0,
         height: "calc(100vh - 60px)",
         overflowY: "auto",
         overflowX: "hidden",
-        position: "relative",
       }}
     >
       <p style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px 16px" }}>
@@ -108,31 +162,76 @@ function SubjectsSidebar() {
       </p>
       <button
         onClick={() => navigate("/")}
-        style={btnStyle(location.pathname === "/")}
+        style={{ ...btnStyle(location.pathname === "/"), justifyContent: "flex-start" }}
       >
         {t("sidebar.all")}
       </button>
-      {subjects.map(({ name }) => (
-        <button
-          key={name}
-          onClick={() => navigate(`/subject/${encodeURIComponent(name)}`)}
-          style={btnStyle(activeSubject === name)}
-          onMouseEnter={(e) => {
-            if (activeSubject !== name) {
-              e.currentTarget.style.color = "#e0e0e0";
-              e.currentTarget.style.borderLeftColor = "#4fc3f7";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (activeSubject !== name) {
-              e.currentTarget.style.color = "#999";
-              e.currentTarget.style.borderLeftColor = "transparent";
-            }
-          }}
-        >
-          {name}
-        </button>
-      ))}
+
+      {sortedSubjects.map(({ name }) => {
+        const active = activeSubject === name;
+        const isPinned = pinnedSet.has(name);
+        const isHovered = hoveredSubject === name;
+
+        return (
+          <div
+            key={name}
+            style={{ position: "relative", display: "flex", alignItems: "center" }}
+            onMouseEnter={() => setHoveredSubject(name)}
+            onMouseLeave={() => setHoveredSubject(null)}
+          >
+            <button
+              onClick={() => navigate(`/subject/${encodeURIComponent(name)}`)}
+              style={{
+                ...btnStyle(active),
+                flex: 1,
+                paddingRight: isLoggedIn ? "28px" : "16px",
+              }}
+              onMouseEnter={(e) => {
+                if (!active) {
+                  e.currentTarget.style.color = "#e0e0e0";
+                  e.currentTarget.style.borderLeftColor = "#4fc3f7";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!active) {
+                  e.currentTarget.style.color = "#999";
+                  e.currentTarget.style.borderLeftColor = "transparent";
+                }
+              }}
+            >
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {name}
+              </span>
+            </button>
+
+            {isLoggedIn && (isHovered || isPinned) && (
+              <button
+                onClick={(e) => handleTogglePin(e, name)}
+                title={isPinned ? "Desafixar" : "Fixar"}
+                style={{
+                  position: "absolute",
+                  right: "8px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "2px",
+                  color: isPinned ? "#4fc3f7" : "#555",
+                  display: "flex",
+                  alignItems: "center",
+                  transition: "color 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = isPinned ? "#4fc3f7" : "#555"; }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill={isPinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="17" x2="12" y2="22" />
+                  <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z" />
+                </svg>
+              </button>
+            )}
+          </div>
+        );
+      })}
 
       {/* drag handle */}
       <div
