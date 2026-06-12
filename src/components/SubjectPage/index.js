@@ -95,7 +95,7 @@ function SubjectPage() {
   useEffect(() => {
     Promise.all([
       fetch("/api/posts/verPosts").then((r) => r.json()).then((d) => parsePage(d).content),
-      authFetch("/api/events/summary").then((r) => r.json()).catch(() => []),
+      authFetch("/api/events/summary").then((r) => r.ok ? r.json() : []).catch(() => []),
     ]).then(([postsData, summaryData]) => {
       const vcMap = {};
       summaryData.forEach((s) => { vcMap[s.postId] = s.viewCount || 0; });

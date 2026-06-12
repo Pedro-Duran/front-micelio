@@ -98,7 +98,9 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
     .filter((n) => !n.isStub)
     .sort((a, b) => b.viewCount - a.viewCount);
 
-  const topPost = sortedNonStub[0] || null;
+  const topPost = subject === "Tutorial"
+    ? (sortedNonStub.find((n) => n.title === "Bem-vindo ao Blog") || sortedNonStub[0] || null)
+    : (sortedNonStub[0] || null);
 
   const previewRaw = topPost ? stripMarkdown(topPost.content) : "";
   const previewText = previewRaw.length > 120 ? previewRaw.slice(0, 120) + "…" : previewRaw;
