@@ -914,12 +914,20 @@ function PostPage() {
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeRaw]}
                   components={{
-                    a: ({ href, children }) =>
-                      href && href.startsWith("/post/") ? (
-                        <Link to={href} style={{ color: "#4fc3f7" }}>{children}</Link>
-                      ) : (
-                        <a href={href} target="_blank" rel="noreferrer">{children}</a>
-                      ),
+                    a: ({ href, children }) => {
+                      if (href && href.startsWith("/post/")) {
+                        const targetId = parseInt(href.replace("/post/", ""), 10);
+                        return (
+                          <span
+                            onClick={() => goToPost(targetId)}
+                            style={{ color: "#4fc3f7", cursor: "pointer", textDecoration: "underline" }}
+                          >
+                            {children}
+                          </span>
+                        );
+                      }
+                      return <a href={href} target="_blank" rel="noreferrer">{children}</a>;
+                    },
                     img: ({ src, alt }) => (
                       <img
                         src={src}
