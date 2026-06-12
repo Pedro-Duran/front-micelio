@@ -33,6 +33,7 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
   const { t } = useTranslation();
   const [showList, setShowList] = useState(false);
   const [stubModal, setStubModal] = useState(null);
+  const [subOverride, setSubOverride] = useState({});
 
   const [cardWidth, setCardWidth] = useState(() => {
     const saved = localStorage.getItem(`cardWidth_${subject}`);
@@ -147,7 +148,8 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
   const handleNodeClick = (node) => {
     const ownsNode = isOwner || (currentUsername && node.authorUsername === currentUsername);
     if (node.isStub && !ownsNode) {
-      setStubModal({ id: node.id, title: node.title });
+      const subscribedByMe = node.id in subOverride ? subOverride[node.id] : (node.subscribedByMe || false);
+      setStubModal({ id: node.id, title: node.title, subscribedByMe });
       return;
     }
     onNodeClick(node);
@@ -181,6 +183,9 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
         <StubModal
           postId={stubModal.id}
           postTitle={stubModal.title}
+          alreadySubscribed={stubModal.subscribedByMe}
+          onSubscribed={() => setSubOverride((prev) => ({ ...prev, [stubModal.id]: true }))}
+          onUnsubscribed={() => setSubOverride((prev) => ({ ...prev, [stubModal.id]: false }))}
           onClose={() => setStubModal(null)}
         />
       )}

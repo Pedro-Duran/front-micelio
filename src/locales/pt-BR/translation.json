@@ -174,7 +174,12 @@
     "success": "Tudo certo!",
     "successDesc": "Você será notificado quando esse post for publicado.",
     "close": "Fechar",
-    "error": "Não foi possível registrar. Verifique se está logado."
+    "error": "Não foi possível registrar. Verifique se está logado.",
+    "alreadySubscribed": "Você já se inscreveu para ser notificado quando \"{{title}}\" for publicado. Gostaria de se desinscrever?",
+    "yesUnsubscribe": "Sim, me desinscrever",
+    "unsubscribeError": "Não foi possível se desinscrever.",
+    "waitingOne": "1 pessoa vai ser notificada",
+    "waitingOther": "{{count}} pessoas vão ser notificadas"
   },
   "subjectCard": {
     "post_one": "{{count}} post",

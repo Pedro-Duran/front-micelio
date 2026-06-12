@@ -174,7 +174,12 @@
     "success": "All set!",
     "successDesc": "You'll be notified when this post is published.",
     "close": "Close",
-    "error": "Could not register. Make sure you're logged in."
+    "error": "Could not register. Make sure you're logged in.",
+    "alreadySubscribed": "You have already subscribed to be notified when \"{{title}}\" is published. Would you like to unsubscribe?",
+    "yesUnsubscribe": "Yes, unsubscribe me",
+    "unsubscribeError": "Could not unsubscribe.",
+    "waitingOne": "1 person will be notified",
+    "waitingOther": "{{count}} people will be notified"
   },
   "subjectCard": {
     "post_one": "{{count}} post",

@@ -47,6 +47,9 @@ function PostPage() {
   const [pendingWikilinks, setPendingWikilinks] = useState(null);
   const [likeCount, setLikeCount] = useState(0);
   const [likedByMe, setLikedByMe] = useState(false);
+  const [subscriberCount, setSubscriberCount] = useState(null);
+  const [subscribersModal, setSubscribersModal] = useState(false);
+  const [subscribersList, setSubscribersList] = useState([]);
 
   // Sidebar: "graph" | "timeline"
   const [sidebarMode, setSidebarMode] = useState("graph");
@@ -177,6 +180,7 @@ function PostPage() {
           subjects: getSubjs(p),
           subject: getSubjs(p)[0] || "Sem categoria",
           isStub: p.isStub || false,
+          subscribedByMe: p.subscribedByMe || false,
           createdAt: p.createdAt || null,
           coverImageUrl: p.coverImageUrl || null,
           avatarUrl: p.authorAvatarUrl || p.author?.avatarUrl || null,
@@ -205,6 +209,7 @@ function PostPage() {
         if (rawPost) {
           setLikeCount(rawPost.likeCount || 0);
           setLikedByMe(rawPost.likedByMe || false);
+          setSubscriberCount(rawPost.subscriberCount ?? 0);
         }
       })
       .catch((err) => console.error(err));
@@ -529,6 +534,18 @@ function PostPage() {
   const goToPost = (targetId) =>
     navigate(`/post/${targetId}`, { state: { fromPost: { id: postId, title: post?.title ?? "" } } });
 
+  const handleOpenSubscribers = async () => {
+    setSubscribersModal(true);
+    if (subscribersList.length > 0) return;
+    try {
+      const res = await fetch(`/api/posts/${postId}/notify`);
+      const data = res.ok ? await res.json() : [];
+      setSubscribersList(Array.isArray(data) ? data : []);
+    } catch {
+      setSubscribersList([]);
+    }
+  };
+
   const handleLike = async () => {
     if (!isLoggedIn) return;
     const wasLiked = likedByMe;
@@ -579,8 +596,52 @@ function PostPage() {
         <StubModal
           postId={stubModal.id}
           postTitle={stubModal.title}
+          alreadySubscribed={stubModal.subscribedByMe}
+          onSubscribed={() => setAllNodes((prev) => prev.map((n) => n.id === stubModal.id ? { ...n, subscribedByMe: true } : n))}
+          onUnsubscribed={() => setAllNodes((prev) => prev.map((n) => n.id === stubModal.id ? { ...n, subscribedByMe: false } : n))}
           onClose={() => setStubModal(null)}
         />
+      )}
+
+      {subscribersModal && (
+        <div
+          onClick={() => setSubscribersModal(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "#242424", border: "1px solid #333", borderRadius: "10px", padding: "24px", width: "320px", maxHeight: "480px", display: "flex", flexDirection: "column", gap: "16px" }}
+          >
+            <h3 style={{ margin: 0, color: "#e0e0e0", fontSize: "15px", fontWeight: "600" }}>
+              {subscriberCount === 1 ? t("stubModal.waitingOne") : t("stubModal.waitingOther", { count: subscriberCount })}
+            </h3>
+            <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
+              {subscribersList.length === 0 ? (
+                <p style={{ color: "#555", fontSize: "13px", margin: 0 }}>{t("common.loading")}</p>
+              ) : (
+                subscribersList.map((u) => (
+                  <div key={u.id} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <Avatar avatarUrl={u.avatarUrl} username={u.username} size={28} />
+                    <span
+                      onClick={() => { navigate(`/user/${u.username}`); setSubscribersModal(false); }}
+                      style={{ color: "#ccc", fontSize: "13px", cursor: "pointer" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "#ccc"; }}
+                    >
+                      {u.username}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+            <button
+              onClick={() => setSubscribersModal(false)}
+              style={{ background: "none", border: "1px solid #333", borderRadius: "4px", color: "#666", cursor: "pointer", padding: "7px", fontSize: "13px" }}
+            >
+              {t("common.close")}
+            </button>
+          </div>
+        </div>
       )}
       {pendingWikilinks && (
         <WikilinkSubjectsModal
@@ -820,6 +881,21 @@ function PostPage() {
                   {likeCount > 0 && <span>{likeCount}</span>}
                 </button>
               </div>
+              {post.isStub && post.author === currentUsername && subscriberCount !== null && subscriberCount > 0 && (
+                <button
+                  onClick={handleOpenSubscribers}
+                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "#4fc3f7", fontSize: "13px", display: "flex", alignItems: "center", gap: "5px", margin: "0 0 28px" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.textDecoration = "underline"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.textDecoration = "none"; }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                  {subscriberCount === 1 ? t("stubModal.waitingOne") : t("stubModal.waitingOther", { count: subscriberCount })}
+                </button>
+              )}
+
               <div data-color-mode="dark" style={{ lineHeight: "1.8", fontSize: "15px" }}>
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
@@ -918,7 +994,7 @@ function PostPage() {
                 height={220}
                 onNodeClick={(node) => {
                   const ownsNode = !!(currentUsername && node.authorUsername === currentUsername);
-                  if (node.isStub && !ownsNode) { setStubModal({ id: node.id, title: node.title }); return; }
+                  if (node.isStub && !ownsNode) { setStubModal({ id: node.id, title: node.title, subscribedByMe: node.subscribedByMe }); return; }
                   registerEvent({ postId: node.id, eventType: "CLICK_NODE" });
                   goToPost(node.id);
                 }}
@@ -966,7 +1042,7 @@ function PostPage() {
                           <button
                             onClick={() => {
                               const ownsNode = !!(currentUsername && node.authorUsername === currentUsername);
-                              if (node.isStub && !ownsNode) { setStubModal({ id: node.id, title: node.title }); return; }
+                              if (node.isStub && !ownsNode) { setStubModal({ id: node.id, title: node.title, subscribedByMe: node.subscribedByMe }); return; }
                               registerEvent({ postId: node.id, eventType: "CLICK_NODE" });
                               goToPost(node.id);
                             }}

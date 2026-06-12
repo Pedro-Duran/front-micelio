@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { authFetch } from "../../utils/api";
 import { useTranslation } from "react-i18next";
 
-function StubModal({ postId, postTitle, onClose }) {
+function StubModal({ postId, postTitle, alreadySubscribed, onSubscribed, onUnsubscribed, onClose }) {
   const { t } = useTranslation();
-  const [step, setStep] = useState("ask");
+  const [step, setStep] = useState(alreadySubscribed ? "already" : "ask");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -14,9 +14,25 @@ function StubModal({ postId, postTitle, onClose }) {
     try {
       const res = await authFetch(`/api/posts/${postId}/notify`, { method: "POST" });
       if (!res.ok) throw new Error();
+      onSubscribed?.();
       setStep("done");
     } catch {
       setError(t("stubModal.error"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUnsubscribe = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await authFetch(`/api/posts/${postId}/notify`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      onUnsubscribed?.();
+      onClose();
+    } catch {
+      setError(t("stubModal.unsubscribeError"));
     } finally {
       setLoading(false);
     }
@@ -31,7 +47,7 @@ function StubModal({ postId, postTitle, onClose }) {
         onClick={(e) => e.stopPropagation()}
         style={{ background: "#2a2a2a", border: "1px solid #333", borderRadius: "10px", padding: "28px 32px", maxWidth: "360px", width: "90%", display: "flex", flexDirection: "column", gap: "14px" }}
       >
-        {step === "ask" ? (
+        {step === "ask" && (
           <>
             <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px", fontWeight: "600" }}>
               {t("stubModal.title")}
@@ -56,7 +72,33 @@ function StubModal({ postId, postTitle, onClose }) {
               </button>
             </div>
           </>
-        ) : (
+        )}
+
+        {step === "already" && (
+          <>
+            <p style={{ color: "#888", fontSize: "13px", lineHeight: "1.6", margin: 0 }}>
+              {t("stubModal.alreadySubscribed", { title: postTitle })}
+            </p>
+            {error && <p style={{ color: "#f44336", fontSize: "12px", margin: 0 }}>{error}</p>}
+            <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+              <button
+                onClick={handleUnsubscribe}
+                disabled={loading}
+                style={{ flex: 1, background: "#c62828", color: "#fff", border: "none", borderRadius: "4px", padding: "9px", fontSize: "13px", fontWeight: "bold", cursor: loading ? "default" : "pointer" }}
+              >
+                {loading ? "..." : t("stubModal.yesUnsubscribe")}
+              </button>
+              <button
+                onClick={onClose}
+                style={{ flex: 1, background: "none", border: "1px solid #444", borderRadius: "4px", padding: "9px", fontSize: "13px", color: "#888", cursor: "pointer" }}
+              >
+                {t("stubModal.no")}
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === "done" && (
           <>
             <h3 style={{ color: "#e0e0e0", margin: 0, fontSize: "15px", fontWeight: "600" }}>{t("stubModal.success")}</h3>
             <p style={{ color: "#888", fontSize: "13px", lineHeight: "1.6", margin: 0 }}>

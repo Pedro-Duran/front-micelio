@@ -59,6 +59,7 @@ function App() {
           subjects: subjs,
           subject: subjs[0] || "Sem categoria",
           isStub: post.isStub || false,
+          subscribedByMe: post.subscribedByMe || false,
           viewCount: vcMap[post.id] || 0,
           coverImageUrl: post.coverImageUrl || null,
           authorUsername: post.authorUsername || post.author?.username || null,
