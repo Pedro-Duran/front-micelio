@@ -15,6 +15,8 @@ import ResetPasswordPage from "./components/ResetPasswordPage";
 import OAuth2CallbackPage from "./components/OAuth2CallbackPage";
 import SearchPage from "./components/SearchPage";
 import MarkdownTutorial from "./components/MarkdownTutorial";
+import PostGraphEmbed from "./components/PostGraphEmbed";
+import GraphPreferences from "./components/GraphPreferences";
 
 function ProtectedRoute({ children }) {
   const { isLoggedIn } = useAuth();
@@ -38,6 +40,8 @@ function MainRouter() {
           <Route path="/novoPost" element={<ProtectedRoute><NovoPost /></ProtectedRoute>} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/tutorial/markdown" element={<MarkdownTutorial />} />
+          <Route path="/post/:id/graph" element={<PostGraphEmbed />} />
+          <Route path="/graph-preferences" element={<ProtectedRoute><GraphPreferences /></ProtectedRoute>} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
         </Routes>

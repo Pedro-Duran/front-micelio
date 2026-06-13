@@ -10,6 +10,7 @@ import SubjectsSidebar from "../SubjectsSidebar";
 import { registerEvent } from "../../utils/analytics";
 import { authFetch, authFetchMultipart, parsePage } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
+import { getSavedPreset } from "../../utils/graphPresets";
 import Comments from "../Comments";
 import StubModal from "../StubModal";
 import Avatar from "../Avatar";
@@ -29,6 +30,7 @@ function PostPage() {
   const { t } = useTranslation();
 
   const fromPost = location.state?.fromPost ?? null;
+  const graphPhysics = getSavedPreset();
 
   const [allNodes, setAllNodes] = useState([]);
   const [allLinks, setAllLinks] = useState([]);
@@ -50,6 +52,8 @@ function PostPage() {
   const [subscriberCount, setSubscriberCount] = useState(null);
   const [subscribersModal, setSubscribersModal] = useState(false);
   const [subscribersList, setSubscribersList] = useState([]);
+  const [showEmbedPanel, setShowEmbedPanel] = useState(false);
+  const [embedCopied, setEmbedCopied] = useState(false);
 
   // Sidebar: "graph" | "timeline"
   const [sidebarMode, setSidebarMode] = useState("graph");
@@ -1003,9 +1007,30 @@ function PostPage() {
                   </span>
                 </button>
               )}
-              <h4 style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", margin: 0 }}>
-                {t("postPage.localGraph")}
-              </h4>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <h4 style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", margin: 0 }}>
+                  {t("postPage.localGraph")}
+                </h4>
+                <button
+                  onClick={() => setShowEmbedPanel((v) => !v)}
+                  title="Incorporar grafo"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: showEmbedPanel ? "#4fc3f7" : "#3a3a3a",
+                    fontSize: "11px",
+                    fontFamily: "monospace",
+                    cursor: "pointer",
+                    padding: "2px 4px",
+                    lineHeight: 1,
+                    transition: "color 0.15s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = showEmbedPanel ? "#4fc3f7" : "#3a3a3a"; }}
+                >
+                  {"<>"}
+                </button>
+              </div>
               <ForceGraph2D
                 graphData={localGraphData}
                 nodeLabel="title"
@@ -1013,6 +1038,11 @@ function PostPage() {
                 linkColor={() => "rgba(22, 157, 211, 0.4)"}
                 width={sidebarWidth - 32}
                 height={220}
+                d3AlphaDecay={graphPhysics.d3AlphaDecay}
+                d3VelocityDecay={graphPhysics.d3VelocityDecay}
+                minZoom={graphPhysics.minZoom}
+                warmupTicks={graphPhysics.warmupTicks}
+                cooldownTicks={graphPhysics.cooldownTicks}
                 onNodeClick={(node) => {
                   const ownsNode = !!(currentUsername && node.authorUsername === currentUsername);
                   if (node.isStub && !ownsNode) { setStubModal({ id: node.id, title: node.title, subscribedByMe: node.subscribedByMe }); return; }
@@ -1048,6 +1078,67 @@ function PostPage() {
                   ctx.fillText(node.title, node.x, node.y + radius + 2 / globalScale);
                 }}
               />
+
+              {/* Embed panel */}
+              {showEmbedPanel && (() => {
+                  const iframeCode = `<iframe src="${window.location.origin}/post/${postId}/graph" width="100%" height="160" style="border-radius:12px;border:none;" loading="lazy"></iframe>`;
+                  return (
+                    <div
+                      style={{
+                        marginTop: "8px",
+                        background: "#141414",
+                        border: "1px solid #2a2a2a",
+                        borderRadius: "8px",
+                        padding: "10px 12px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                      }}
+                    >
+                      <span style={{ color: "#555", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                        Grafo local — iframe
+                      </span>
+                      <pre
+                        style={{
+                          margin: 0,
+                          padding: "8px 10px",
+                          background: "#0e0e0e",
+                          border: "1px solid #1e1e1e",
+                          borderRadius: "5px",
+                          fontSize: "10px",
+                          color: "#80cbc4",
+                          fontFamily: "monospace",
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-all",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {iframeCode}
+                      </pre>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(iframeCode).then(() => {
+                            setEmbedCopied(true);
+                            setTimeout(() => setEmbedCopied(false), 2000);
+                          });
+                        }}
+                        style={{
+                          background: embedCopied ? "#1a3a2a" : "#1a2a35",
+                          border: `1px solid ${embedCopied ? "#2e6b4a" : "#1e4a62"}`,
+                          borderRadius: "5px",
+                          color: embedCopied ? "#81c784" : "#4fc3f7",
+                          fontSize: "11px",
+                          padding: "5px 10px",
+                          cursor: "pointer",
+                          alignSelf: "flex-start",
+                          transition: "all 0.2s",
+                        }}
+                      >
+                        {embedCopied ? "✓ Copiado!" : "Copiar código"}
+                      </button>
+                    </div>
+                  );
+                })()}
 
               {/* Posts linkados */}
               {localGraphData.nodes.filter((n) => n.id !== postId).length > 0 && (

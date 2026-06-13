@@ -6,6 +6,7 @@ import SubjectsSidebar from "../SubjectsSidebar";
 import { authFetch, parsePage } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import { useTranslation } from "react-i18next";
+import { getSavedPreset } from "../../utils/graphPresets";
 
 function lerpColor(t) {
   const r = Math.round(26 + t * (79 - 26));
@@ -28,6 +29,7 @@ function stripMarkdown(text) {
 function SubjectPage() {
   const { name } = useParams();
   const subject = decodeURIComponent(name);
+  const graphPhysics = getSavedPreset();
   const [nodes, setNodes] = useState([]);
   const [links, setLinks] = useState([]);
   const [topPost, setTopPost] = useState(null);
@@ -44,8 +46,10 @@ function SubjectPage() {
 
   useEffect(() => {
     if (!fgRef.current || nodes.length === 0) return;
-    fgRef.current.d3Force("charge").strength(-200);
-    fgRef.current.d3Force("link")?.distance(60);
+    const p = getSavedPreset();
+    fgRef.current.d3Force("charge").strength(p.charge);
+    fgRef.current.d3Force("link")?.distance(p.linkDistance);
+    if (p.linkStrength !== undefined) fgRef.current.d3Force("link")?.strength(p.linkStrength);
     fgRef.current.d3ReheatSimulation();
   }, [nodes]);
   const navigate = useNavigate();
@@ -332,10 +336,11 @@ function SubjectPage() {
                     onNodeClick={(node) => navigate(`/post/${node.id}`)}
                     backgroundColor="#1a1a1a"
                     onEngineStop={() => {}}
-                    d3AlphaDecay={0.02}
-                    d3VelocityDecay={0.3}
-                    warmupTicks={100}
-                    cooldownTicks={0}
+                    d3AlphaDecay={graphPhysics.d3AlphaDecay}
+                    d3VelocityDecay={graphPhysics.d3VelocityDecay}
+                    minZoom={graphPhysics.minZoom}
+                    warmupTicks={graphPhysics.warmupTicks}
+                    cooldownTicks={graphPhysics.cooldownTicks}
                   />
                 </div>
 

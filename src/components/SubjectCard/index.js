@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { ForceGraph2D } from "react-force-graph";
+import { getSavedPreset } from "../../utils/graphPresets";
 import { Link, useNavigate } from "react-router-dom";
 import StubModal from "../StubModal";
 import { useAuth } from "../../context/AuthContext";
@@ -71,12 +72,16 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
   }, [subject]);
 
+  const physics = getSavedPreset();
+
   useEffect(() => {
     if (!fgRef.current || nodes.length === 0) return;
-    fgRef.current.d3Force("charge").strength(-200);
-    fgRef.current.d3Force("link")?.distance(60);
+    fgRef.current.d3Force("charge").strength(physics.charge);
+    fgRef.current.d3Force("link")?.distance(physics.linkDistance);
+    if (physics.linkStrength !== undefined) fgRef.current.d3Force("link")?.strength(physics.linkStrength);
+    fgRef.current.d3Force("center")?.strength(0.04);
     fgRef.current.d3ReheatSimulation();
-  }, [nodes]);
+  }, [nodes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const maxVc = Math.max(...nodes.map((n) => n.viewCount), 1);
 
@@ -276,7 +281,11 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
             height={overlay ? 220 : 180}
             onNodeClick={handleNodeClick}
             backgroundColor="#1e1e1e"
-            warmupTicks={50}
+            d3AlphaDecay={physics.d3AlphaDecay}
+            d3VelocityDecay={physics.d3VelocityDecay}
+            minZoom={physics.minZoom}
+            warmupTicks={physics.warmupTicks}
+            cooldownTicks={physics.cooldownTicks}
           />
 
           {overlay && topPost && (

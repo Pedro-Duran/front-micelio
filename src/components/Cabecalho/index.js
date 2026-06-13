@@ -14,7 +14,9 @@ const Cabecalho = () => {
   const [showCategories, setShowCategories] = useState(false);
   const [activeCategory, setActiveCategory] = useState("usuarios");
   const [lang, setLang] = useState(i18n.language);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const inputRef = useRef(null);
+  const userMenuRef = useRef(null);
 
   const handleLogout = () => { logout(); navigate("/login"); };
 
@@ -179,15 +181,56 @@ const Cabecalho = () => {
 
         {isLoggedIn ? (
           <>
-            <li>
-              <Link
-                to={`/user/${username}`}
-                style={{ color: "#888", fontSize: "14px", textDecoration: "none" }}
+            <li style={{ position: "relative" }} ref={userMenuRef}>
+              <button
+                onClick={() => setShowUserMenu((v) => !v)}
+                onBlur={() => setTimeout(() => setShowUserMenu(false), 150)}
+                style={{ background: "none", border: "none", color: "#888", fontSize: "14px", cursor: "pointer", padding: 0 }}
                 onMouseEnter={(e) => { e.currentTarget.style.color = "#ccc"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = "#888"; }}
               >
                 {username}
-              </Link>
+              </button>
+              {showUserMenu && (
+                <div style={{
+                  position: "absolute",
+                  top: "calc(100% + 8px)",
+                  right: 0,
+                  background: "#141414",
+                  border: "1px solid #2a2a2a",
+                  borderRadius: "6px",
+                  overflow: "hidden",
+                  minWidth: "170px",
+                  zIndex: 100,
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+                }}>
+                  {[
+                    { label: "Ver perfil", action: () => navigate(`/user/${username}`) },
+                    { label: "Preferências de grafos", action: () => navigate("/graph-preferences") },
+                  ].map(({ label, action }) => (
+                    <button
+                      key={label}
+                      onMouseDown={(e) => { e.preventDefault(); action(); setShowUserMenu(false); }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        background: "none",
+                        border: "none",
+                        borderBottom: "1px solid #1e1e1e",
+                        color: "#aaa",
+                        fontSize: "13px",
+                        padding: "10px 14px",
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#1e1e1e"; e.currentTarget.style.color = "#e0e0e0"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "#aaa"; }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </li>
             <li>
               <button
