@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ForceGraph2D } from "react-force-graph";
 import { useNavigate } from "react-router-dom";
 import Cabecalho from "../Cabecalho";
@@ -28,10 +28,17 @@ function PreviewCard({ preset, nodes, links, selected, onSelect }) {
   const startX = useRef(0);
   const startW = useRef(0);
 
+  // Each card gets its own copies so ForceGraph2D mutations (x, y, vx, vy, fx, fy)
+  // don't bleed between cards through the shared parent arrays.
+  const graphData = useMemo(() => ({
+    nodes: nodes.map((n) => ({ ...n })),
+    links: links.map((l) => ({ ...l })),
+  }), [nodes, links]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
-    if (!fgRef.current || nodes.length === 0) return;
+    if (!fgRef.current || graphData.nodes.length === 0) return;
     applyPreset(fgRef, preset);
-  }, [nodes, preset]);
+  }, [graphData, preset]);
 
   useEffect(() => {
     const onMove = (e) => {
@@ -79,7 +86,7 @@ function PreviewCard({ preset, nodes, links, selected, onSelect }) {
       <div style={{ background: "#1a1a2e", position: "relative" }}>
         <ForceGraph2D
           ref={fgRef}
-          graphData={{ nodes, links }}
+          graphData={graphData}
           nodeLabel="title"
           width={cardWidth}
           height={180}
