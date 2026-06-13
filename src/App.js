@@ -20,6 +20,19 @@ function App() {
       .then((data) => setPinnedSubjects(Array.isArray(data) ? data : []));
   }, [isLoggedIn]);
 
+  const handleTogglePin = async (subjectName) => {
+    const isPinned = pinnedSubjects.includes(subjectName);
+    if (isPinned) {
+      setPinnedSubjects((prev) => prev.filter((s) => s !== subjectName));
+      try { await authFetch(`/api/users/subjects/pin/${encodeURIComponent(subjectName)}`, { method: "DELETE" }); }
+      catch { setPinnedSubjects((prev) => [...prev, subjectName]); }
+    } else {
+      setPinnedSubjects((prev) => [...prev, subjectName]);
+      try { await authFetch("/api/users/subjects/pin", { method: "POST", body: JSON.stringify({ subjectName }) }); }
+      catch { setPinnedSubjects((prev) => prev.filter((s) => s !== subjectName)); }
+    }
+  };
+
   useEffect(() => {
     Promise.all([
       fetch("/api/posts/verPosts").then((r) => {
@@ -141,6 +154,8 @@ function App() {
                 links={links}
                 onNodeClick={(node) => navigate(`/post/${node.id}`)}
                 overlay
+                isPinned={pinnedSubjects.includes(subject)}
+                onTogglePin={isLoggedIn ? () => handleTogglePin(subject) : null}
               />
             ))}
         </div>

@@ -28,7 +28,7 @@ const MIN_W = 200;
 const MAX_W = 600;
 const DEFAULT_W = 300;
 
-function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOwner = false }) {
+function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOwner = false, isPinned = false, onTogglePin = null }) {
   const navigate = useNavigate();
   const { username: currentUsername } = useAuth();
   const { t } = useTranslation();
@@ -239,6 +239,33 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
             }),
           }}
         >
+          {onTogglePin && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
+              title={isPinned ? "Desafixar" : "Fixar"}
+              style={{
+                position: "absolute",
+                top: "7px",
+                right: "8px",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "2px",
+                color: isPinned ? "#4fc3f7" : "rgba(255,255,255,0.2)",
+                display: "flex",
+                alignItems: "center",
+                transition: "color 0.15s",
+                zIndex: 1,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = isPinned ? "#4fc3f7" : "rgba(255,255,255,0.2)"; }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill={isPinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="17" x2="12" y2="22" />
+                <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17z" />
+              </svg>
+            </button>
+          )}
           <div style={{
             position: "absolute",
             bottom: 0, left: 0, right: 0,
