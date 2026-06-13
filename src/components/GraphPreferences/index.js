@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ForceGraph2D } from "react-force-graph";
 import { useNavigate } from "react-router-dom";
 import Cabecalho from "../Cabecalho";
-import { parsePage } from "../../utils/api";
+import { parsePage, authFetch } from "../../utils/api";
 import { GRAPH_PRESETS, PRESET_KEY } from "../../utils/graphPresets";
 
 function applyPreset(fgRef, preset) {
@@ -163,6 +163,19 @@ function GraphPreferences() {
     () => localStorage.getItem(PRESET_KEY) || ""
   );
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    authFetch("/api/users/preferences")
+      .then((r) => r.ok ? r.json() : null)
+      .catch(() => null)
+      .then((data) => {
+        if (data?.graphPreset) {
+          localStorage.setItem(PRESET_KEY, data.graphPreset);
+          setSelectedPreset(data.graphPreset);
+        }
+      });
+  }, []);
 
   useEffect(() => {
     fetch("/api/posts/subjects")
@@ -216,9 +229,19 @@ function GraphPreferences() {
       .catch(() => {});
   }, [selectedSubject]);
 
-  const handleSave = () => {
-    if (!selectedPreset) return;
+  const handleSave = async () => {
+    if (!selectedPreset || saving) return;
+    setSaving(true);
     localStorage.setItem(PRESET_KEY, selectedPreset);
+    try {
+      await authFetch("/api/users/preferences", {
+        method: "PUT",
+        body: JSON.stringify({ graphPreset: selectedPreset }),
+      });
+    } catch {
+      // localStorage já foi salvo; falha silenciosa na API
+    }
+    setSaving(false);
     setSaved(true);
     setTimeout(() => { setSaved(false); navigate("/"); }, 1200);
   };
@@ -281,7 +304,7 @@ function GraphPreferences() {
           {/* Save button */}
           <button
             onClick={handleSave}
-            disabled={!selectedPreset}
+            disabled={!selectedPreset || saving}
             style={{
               padding: "10px 24px",
               background: saved ? "#1a3a2a" : "#1a2a35",
@@ -294,7 +317,7 @@ function GraphPreferences() {
               transition: "all 0.2s",
             }}
           >
-            {saved ? "✓ Salvo! Voltando..." : "Salvar preferência"}
+            {saved ? "✓ Salvo! Voltando..." : saving ? "Salvando..." : "Salvar preferência"}
           </button>
         </div>
       </div>
