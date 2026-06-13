@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { ForceGraph2D } from "react-force-graph";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
@@ -53,6 +53,8 @@ function SubjectPage() {
     fgRef.current.d3ReheatSimulation();
   }, [nodes]);
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromPost = location.state?.fromPost ?? null;
   const { t } = useTranslation();
   const { isLoggedIn } = useAuth();
 
@@ -226,6 +228,28 @@ function SubjectPage() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
           <div style={{ padding: "24px 32px 16px", borderBottom: "1px solid #2a2a2a" }}>
+            {fromPost && (
+              <button
+                onClick={() => navigate(`/post/${fromPost.id}`)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "8px",
+                  marginBottom: "16px",
+                  background: "#1a2a35",
+                  border: "1px solid #1e4a62",
+                  borderRadius: "6px",
+                  padding: "6px 12px",
+                  cursor: "pointer",
+                  color: "#4fc3f7",
+                  fontSize: "12px",
+                  maxWidth: "300px",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#1e3a4a"; e.currentTarget.style.borderColor = "#4fc3f7"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "#1a2a35"; e.currentTarget.style.borderColor = "#1e4a62"; }}
+              >
+                <span style={{ flexShrink: 0 }}>←</span>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fromPost.title}</span>
+              </button>
+            )}
             {editingName ? (
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <input

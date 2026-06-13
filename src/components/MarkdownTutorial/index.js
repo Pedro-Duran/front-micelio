@@ -9,7 +9,7 @@ const COMMITS = [
   {
     hash: "3a8e9b5",
     message: "[[título]] linka outro post deste blog",
-    markdown: "Veja também: [[Bem-vindo ao Blog]]\n\n> Exclusivo deste blog — cria um nó conectado no grafo.",
+    markdown: "Veja também: [[Bem-vindo ao Blog]]\n\n> Exclusivo deste blog — cria um nó conectado no grafo, como no grafo visível nessa barra lateral.",
   },
   {
     hash: "a1f3c2e",

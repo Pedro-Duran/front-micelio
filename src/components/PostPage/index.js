@@ -18,8 +18,6 @@ import WikilinkSubjectsModal from "../WikilinkSubjectsModal";
 import ShareButton from "../ShareButton";
 import { useTranslation } from "react-i18next";
 
-const TL_SPEEDS = { Devagar: 1500, Normal: 800, "Rápido": 300 };
-
 function PostPage() {
   const { id } = useParams();
   const postId = parseInt(id);
@@ -55,18 +53,13 @@ function PostPage() {
   const [showEmbedPanel, setShowEmbedPanel] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
 
-  // Sidebar: "graph" | "timeline"
-  const [sidebarMode, setSidebarMode] = useState("graph");
-  const [tlIndex, setTlIndex] = useState(0);
-  const [tlRunning, setTlRunning] = useState(false);
-  const [tlDone, setTlDone] = useState(false);
-  const [tlData, setTlData] = useState({ nodes: [], links: [] });
-  const [tlSpeed, setTlSpeed] = useState("Normal");
-
   const sidebarRef = useRef();
   const imageInputRef = useRef(null);
   const editorApiRef = useRef(null);
   const coverInputRef = useRef(null);
+  const commentsRef = useRef(null);
+
+  const [commentCount, setCommentCount] = useState(0);
 
   const [uploadingCover, setUploadingCover] = useState(false);
   const [bannerPosY, setBannerPosY] = useState(50);
@@ -280,65 +273,6 @@ function PostPage() {
     });
     return map;
   }, [allNodes]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Nós da timeline ordenados por data
-  const timelineNodes = useMemo(
-    () =>
-      [...localGraphData.nodes].sort(
-        (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
-      ),
-    [localGraphData.nodes]
-  );
-
-  // Loop de animação da timeline
-  useEffect(() => {
-    if (!tlRunning) return;
-
-    if (tlIndex >= timelineNodes.length) {
-      setTlRunning(false);
-      setTlDone(true);
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      const node = timelineNodes[tlIndex];
-      setTlData((prev) => {
-        const existingIds = new Set(prev.nodes.map((n) => n.id));
-        const newLinks = localGraphData.links
-          .filter((l) => {
-            const src = typeof l.source === "object" ? l.source.id : l.source;
-            const tgt = typeof l.target === "object" ? l.target.id : l.target;
-            return (
-              (src === node.id && existingIds.has(tgt)) ||
-              (tgt === node.id && existingIds.has(src))
-            );
-          })
-          .map((l) => ({
-            source: typeof l.source === "object" ? l.source.id : l.source,
-            target: typeof l.target === "object" ? l.target.id : l.target,
-          }));
-        return {
-          nodes: [...prev.nodes, { ...node, fresh: true }],
-          links: [...prev.links, ...newLinks],
-        };
-      });
-      setTlIndex((i) => i + 1);
-    }, TL_SPEEDS[tlSpeed]);
-
-    return () => clearTimeout(timer);
-  }, [tlRunning, tlIndex, timelineNodes, localGraphData.links, tlSpeed]);
-
-  const resetTimeline = () => {
-    setTlData({ nodes: [], links: [] });
-    setTlIndex(0);
-    setTlDone(false);
-  };
-
-  const openTimeline = () => {
-    resetTimeline();
-    setSidebarMode("timeline");
-  };
-
 
   const imageUploadCommand = {
     name: "imageUpload",
@@ -590,10 +524,6 @@ function PostPage() {
     );
   }
 
-  const tlProgress =
-    timelineNodes.length > 0 ? (tlIndex / timelineNodes.length) * 100 : 0;
-  const tlCurrentNode = tlIndex > 0 ? timelineNodes[tlIndex - 1] : null;
-
   return (
     <>
       {stubModal && (
@@ -833,8 +763,19 @@ function PostPage() {
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <h1 style={{ fontSize: "28px", marginBottom: "8px", marginTop: 0 }}>{editedTitle}</h1>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                   <ShareButton postId={postId} username={currentUsername} />
+                  <button
+                    onClick={() => commentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                    style={{ background: "none", border: "1px solid #333", borderRadius: "4px", color: "#666", cursor: "pointer", fontSize: "11px", padding: "3px 9px", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.borderColor = "#555"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    {commentCount > 0 ? `${commentCount} comentário${commentCount !== 1 ? "s" : ""}` : "Comentários"}
+                  </button>
                   {isLoggedIn && !post.isStub && (
                     <button
                       onClick={() => navigate("/novoPost", { state: { refTitle: post.title, refPostId: postId } })}
@@ -845,35 +786,63 @@ function PostPage() {
                       {t("postPage.refPost")}
                     </button>
                   )}
-                  <button onClick={openTimeline} title={t("postPage.viewTimeline")} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>🎬</button>
                   {isLoggedIn && post.author === currentUsername && (
                     <>
-                      <button onClick={() => setEditMode(true)} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>✏️</button>
-                      <button onClick={handleDelete} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "18px" }}>🗑️</button>
+                      <button
+                        onClick={() => setEditMode(true)}
+                        style={{ background: "none", border: "1px solid #333", borderRadius: "4px", color: "#666", cursor: "pointer", fontSize: "11px", padding: "3px 9px", whiteSpace: "nowrap" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.borderColor = "#555"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }}
+                      >
+                        Editar post
+                      </button>
+                      <button
+                        onClick={handleDelete}
+                        style={{ background: "none", border: "1px solid #333", borderRadius: "4px", color: "#666", cursor: "pointer", fontSize: "11px", padding: "3px 9px", whiteSpace: "nowrap" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = "#f44336"; e.currentTarget.style.borderColor = "#f44336"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }}
+                      >
+                        Excluir post
+                      </button>
                     </>
                   )}
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "24px" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                  <p style={{ color: "#888", fontSize: "13px", margin: 0 }}>
-                    {t("postPage.author")} <span style={{ color: "#aaa" }}>{post.author}</span>
-                  </p>
-                  <p style={{ color: "#888", fontSize: "13px", margin: 0, display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" }}>
-                    <span>{t("postPage.subject")}</span>
-                    {(post.subjects?.length > 0 ? post.subjects : [post.subject]).filter(Boolean).map((s) => (
-                      <Link
-                        key={s}
-                        to={`/subject/${encodeURIComponent(s)}`}
-                        style={{ color: "#888", textDecoration: "none", borderBottom: "1px solid #444" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; e.currentTarget.style.borderBottomColor = "#4fc3f7"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = "#888"; e.currentTarget.style.borderBottomColor = "#444"; }}
-                      >
-                        {s}
-                      </Link>
-                    ))}
-                  </p>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "28px" }}>
+                {/* Avatar + author info */}
+                <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                  <div
+                    onClick={() => navigate(`/user/${post.author}`)}
+                    style={{ cursor: "pointer", flexShrink: 0, marginTop: "2px" }}
+                  >
+                    <Avatar avatarUrl={post.avatarUrl} username={post.author} size={38} />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <span
+                      onClick={() => navigate(`/user/${post.author}`)}
+                      style={{ color: "#ccc", fontSize: "14px", fontWeight: "500", cursor: "pointer", lineHeight: 1.2 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "#ccc"; }}
+                    >
+                      {post.author}
+                    </span>
+                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px" }}>
+                      {(post.subjects?.length > 0 ? post.subjects : [post.subject]).filter(Boolean).map((s) => (
+                        <span
+                          key={s}
+                          onClick={() => navigate(`/subject/${encodeURIComponent(s)}`, { state: { fromPost: { id: postId, title: post.title } } })}
+                          style={{ color: "#666", fontSize: "12px", borderBottom: "1px solid #333", cursor: "pointer" }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; e.currentTarget.style.borderBottomColor = "#4fc3f7"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderBottomColor = "#333"; }}
+                        >
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+
+                {/* Like button */}
                 <button
                   onClick={handleLike}
                   title={isLoggedIn ? (likedByMe ? t("postPage.unlike") : t("postPage.like")) : t("postPage.loginToLike")}
@@ -959,7 +928,9 @@ function PostPage() {
               </div>
 
 
-              <Comments postId={postId} />
+              <div ref={commentsRef}>
+                <Comments postId={postId} onCountChange={setCommentCount} />
+              </div>
             </>
           )}
         </div>
@@ -967,7 +938,7 @@ function PostPage() {
         {/* Sidebar */}
         <div
           ref={sidebarRef}
-          style={{ width: `${sidebarWidth}px`, borderLeft: "1px solid #2a2a2a", padding: "16px", display: "flex", flexDirection: "column", gap: "10px", flexShrink: 0, position: "relative" }}
+          style={{ width: `${sidebarWidth}px`, borderLeft: "1px solid #2a2a2a", padding: "16px", display: "flex", flexDirection: "column", gap: "10px", flexShrink: 0, position: "sticky", top: 0, alignSelf: "flex-start", height: "calc(100vh - 60px)", overflowY: "auto" }}
         >
           {/* Drag handle — left edge */}
           <div
@@ -983,8 +954,7 @@ function PostPage() {
             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
             style={{ position: "absolute", top: 0, left: 0, width: "6px", height: "100%", cursor: "col-resize", zIndex: 10 }}
           />
-          {sidebarMode === "graph" ? (
-            <>
+          <>
               {fromPost && (
                 <button
                   onClick={() => navigate(`/post/${fromPost.id}`)}
@@ -1218,82 +1188,6 @@ function PostPage() {
                 </>
               )}
             </>
-          ) : (
-            <>
-              {/* Header da timeline */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h4 style={{ color: "#555", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", margin: 0 }}>
-                  {t("postPage.timeline")}
-                </h4>
-                <button
-                  onClick={() => { setSidebarMode("graph"); setTlRunning(false); }}
-                  style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "11px" }}
-                >
-                  {t("postPage.backToGraph")}
-                </button>
-              </div>
-
-              {/* Grafo animado */}
-              <div style={{ position: "relative" }}>
-                <ForceGraph2D
-                  graphData={tlData}
-                  nodeLabel="title"
-                  pixelRatio={window.devicePixelRatio}
-                  linkColor={() => "rgba(22, 157, 211, 0.4)"}
-                  backgroundColor="#1e1e1e"
-                  width={228}
-                  height={200}
-                  nodeCanvasObject={(node, ctx, globalScale) => {
-                    const radius = node.isStub ? 3 : 5;
-                    ctx.beginPath();
-                    ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-                    ctx.fillStyle = node.fresh ? "#4fc3f7" : "#1a6b8a";
-                    ctx.fill();
-
-                    const fontSize = 10 / globalScale;
-                    ctx.font = `${fontSize}px Sans-Serif`;
-                    ctx.textAlign = "center";
-                    ctx.textBaseline = "top";
-                    ctx.fillStyle = node.fresh ? "rgba(79, 195, 247, 0.9)" : "rgba(200, 200, 200, 0.6)";
-                    ctx.fillText(node.title, node.x, node.y + radius + 2 / globalScale);
-                  }}
-                />
-                {tlCurrentNode && (
-                  <div style={{ position: "absolute", bottom: "4px", left: "4px", fontSize: "10px", color: "#888", pointerEvents: "none", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {tlCurrentNode.title}
-                  </div>
-                )}
-              </div>
-
-              {/* Barra de progresso */}
-              <div style={{ height: "3px", background: "#2a2a2a", borderRadius: "2px", overflow: "hidden" }}>
-                <div style={{ width: `${tlProgress}%`, height: "100%", background: "#4fc3f7", transition: `width ${TL_SPEEDS[tlSpeed]}ms linear` }} />
-              </div>
-
-              {/* Controles */}
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <button
-                  onClick={() => {
-                    if (tlDone) resetTimeline();
-                    setTlRunning((r) => !r);
-                  }}
-                  style={{ background: tlRunning ? "#555" : "#4fc3f7", border: "none", borderRadius: "50%", width: "28px", height: "28px", cursor: "pointer", fontSize: "11px", color: tlRunning ? "#ccc" : "#000", flexShrink: 0 }}
-                >
-                  {tlRunning ? "⏸" : "▶"}
-                </button>
-                {Object.entries({ Devagar: "postPage.slow", Normal: "postPage.normal", "Rápido": "postPage.fast" }).map(([s, tKey]) => (
-                  <button
-                    key={s}
-                    onClick={() => setTlSpeed(s)}
-                    style={{ padding: "2px 6px", background: tlSpeed === s ? "#4fc3f7" : "#2a2a2a", color: tlSpeed === s ? "#000" : "#666", border: "none", borderRadius: "3px", cursor: "pointer", fontSize: "10px" }}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-
-            </>
-          )}
         </div>
 
       </div>

@@ -283,7 +283,7 @@ function CommentItem({ comment, postId, currentUsername, onDelete, onRefresh, de
   );
 }
 
-function Comments({ postId }) {
+function Comments({ postId, onCountChange }) {
   const { isLoggedIn, username } = useAuth();
   const { t } = useTranslation();
   const [comments, setComments] = useState([]);
@@ -343,6 +343,8 @@ function Comments({ postId }) {
     (acc, c) => acc + 1 + (c.replies?.length || 0),
     0
   );
+
+  useEffect(() => { onCountChange?.(totalCount); }, [totalCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{ marginTop: "64px", paddingTop: "32px", borderTop: "1px solid #2a2a2a" }}>
