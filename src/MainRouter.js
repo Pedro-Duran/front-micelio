@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { PostsProvider } from "./context/PostsContext";
 import App from "./App";
 import NovoPost from "./components/newPost";
 import PostPage from "./components/PostPage";
@@ -26,6 +27,7 @@ function ProtectedRoute({ children }) {
 function MainRouter() {
   return (
     <AuthProvider>
+      <PostsProvider>
       <Router>
         <Routes>
           <Route path="/" element={<App />} />
@@ -46,6 +48,7 @@ function MainRouter() {
           <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
         </Routes>
       </Router>
+      </PostsProvider>
     </AuthProvider>
   );
 }

@@ -3,14 +3,16 @@ import { useNavigate } from "react-router-dom";
 import Cabecalho from "./components/Cabecalho";
 import SubjectsSidebar from "./components/SubjectsSidebar";
 import SubjectCard from "./components/SubjectCard";
-import { authFetch, parsePage } from "./utils/api";
+import { authFetch } from "./utils/api";
 import { useAuth } from "./context/AuthContext";
+import { usePosts } from "./context/PostsContext";
 
 function App() {
   const [groupedNodes, setGroupedNodes] = useState({});
   const [pinnedSubjects, setPinnedSubjects] = useState([]);
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
+  const { posts } = usePosts();
 
   useEffect(() => {
     if (!isLoggedIn) { setPinnedSubjects([]); return; }
@@ -34,86 +36,77 @@ function App() {
   };
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/posts/verPosts").then((r) => {
-        if (!r.ok) throw new Error("Erro ao buscar posts");
-        return r.json();
-      }).then((d) => parsePage(d).content),
-      authFetch("/api/events/summary").then((r) => r.ok ? r.json() : []).catch(() => []),
-    ]).then(([postsData, summaryData]) => {
-      const vcMap = {};
-      summaryData.forEach((s) => { vcMap[s.postId] = s.viewCount || 0; });
+    if (!posts.length) return;
 
-      const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
-        ? p.subjects : (p.subject ? [p.subject] : ["Sem categoria"]);
+    authFetch("/api/events/summary").then((r) => r.ok ? r.json() : []).catch(() => [])
+      .then((summaryData) => {
+        const vcMap = {};
+        summaryData.forEach((s) => { vcMap[s.postId] = s.viewCount || 0; });
 
-      const writtenTitles = new Set(
-        postsData.filter((p) => !p.isStub).map((p) => p.title?.toLowerCase().trim()).filter(Boolean)
-      );
-      const dedupedPosts = postsData.filter(
-        (p) => !p.isStub || !writtenTitles.has(p.title?.toLowerCase().trim())
-      );
+        const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
+          ? p.subjects : (p.subject ? [p.subject] : ["Sem categoria"]);
 
-      let visiblePosts = dedupedPosts;
-      if (!isLoggedIn) {
-        const countByUser = {};
-        dedupedPosts.forEach((p) => {
-          if (!p.isStub) {
-            const u = p.authorUsername || p.author?.username;
-            if (u) countByUser[u] = (countByUser[u] || 0) + 1;
+        // posts from context are already deduped
+        let visiblePosts = posts;
+        if (!isLoggedIn) {
+          const countByUser = {};
+          posts.forEach((p) => {
+            if (!p.isStub) {
+              const u = p.authorUsername || p.author?.username;
+              if (u) countByUser[u] = (countByUser[u] || 0) + 1;
+            }
+          });
+          const topUser = Object.entries(countByUser).sort((a, b) => b[1] - a[1])[0]?.[0];
+          if (topUser) {
+            visiblePosts = posts.filter((p) => {
+              const u = p.authorUsername || p.author?.username;
+              return u === topUser;
+            });
+          }
+        }
+
+        const nodes = visiblePosts.map((post) => {
+          const subjs = getSubjs(post);
+          return {
+            id: post.id,
+            title: post.title || "Título não disponível",
+            content: post.content || "",
+            subjects: subjs,
+            subject: subjs[0] || "Sem categoria",
+            isStub: post.isStub || false,
+            subscribedByMe: post.subscribedByMe || false,
+            viewCount: vcMap[post.id] || 0,
+            coverImageUrl: post.coverImageUrl || null,
+            authorUsername: post.authorUsername || post.author?.username || null,
+          };
+        });
+
+        const links = [];
+        visiblePosts.forEach((post) => {
+          if (Array.isArray(post.links)) {
+            post.links.forEach((linkedId) => links.push({ source: post.id, target: linkedId }));
           }
         });
-        const topUser = Object.entries(countByUser).sort((a, b) => b[1] - a[1])[0]?.[0];
-        if (topUser) {
-          visiblePosts = dedupedPosts.filter((p) => {
-            const u = p.authorUsername || p.author?.username;
-            return u === topUser;
+
+        const grouped = {};
+        nodes.forEach((node) => {
+          node.subjects.forEach((s) => {
+            if (!grouped[s]) grouped[s] = { nodes: [], links: [] };
+            if (!grouped[s].nodes.find((n) => n.id === node.id)) grouped[s].nodes.push(node);
           });
-        }
-      }
-
-      const nodes = visiblePosts.map((post) => {
-        const subjs = getSubjs(post);
-        return {
-          id: post.id,
-          title: post.title || "Título não disponível",
-          content: post.content || "",
-          subjects: subjs,
-          subject: subjs[0] || "Sem categoria",
-          isStub: post.isStub || false,
-          subscribedByMe: post.subscribedByMe || false,
-          viewCount: vcMap[post.id] || 0,
-          coverImageUrl: post.coverImageUrl || null,
-          authorUsername: post.authorUsername || post.author?.username || null,
-        };
-      });
-
-      const links = [];
-      visiblePosts.forEach((post) => {
-        if (Array.isArray(post.links)) {
-          post.links.forEach((linkedId) => links.push({ source: post.id, target: linkedId }));
-        }
-      });
-
-      const grouped = {};
-      nodes.forEach((node) => {
-        node.subjects.forEach((s) => {
-          if (!grouped[s]) grouped[s] = { nodes: [], links: [] };
-          if (!grouped[s].nodes.find((n) => n.id === node.id)) grouped[s].nodes.push(node);
         });
-      });
 
-      Object.values(grouped).forEach((group) => {
-        group.links = links.filter(
-          (link) =>
-            group.nodes.find((n) => n.id === link.source) &&
-            group.nodes.find((n) => n.id === link.target)
-        );
-      });
+        Object.values(grouped).forEach((group) => {
+          group.links = links.filter(
+            (link) =>
+              group.nodes.find((n) => n.id === link.source) &&
+              group.nodes.find((n) => n.id === link.target)
+          );
+        });
 
-      setGroupedNodes(grouped);
-    }).catch((err) => console.error(err));
-  }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+        setGroupedNodes(grouped);
+      }).catch((err) => console.error(err));
+  }, [isLoggedIn, posts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>

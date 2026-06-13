@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useRef } from "react";
 import { ForceGraph2D } from "react-force-graph";
 import Cabecalho from "../Cabecalho";
-import { parsePage } from "../../utils/api";
+import { usePosts } from "../../context/PostsContext";
 import { useTranslation } from "react-i18next";
 
 const SPEEDS = { Devagar: 2000, Normal: 1000, "Rápido": 400 };
 
 function Timeline() {
+  const { posts: rawPosts } = usePosts();
   const [allPosts, setAllPosts] = useState([]);
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -22,17 +23,12 @@ function Timeline() {
   const chunksRef = useRef([]);
 
   useEffect(() => {
-    fetch("/api/posts/verPosts")
-      .then((res) => res.json())
-      .then((raw) => parsePage(raw).content)
-      .then((data) => {
-        const sorted = data
-          .filter((p) => !p.isStub)
-          .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-        setAllPosts(sorted);
-      })
-      .catch(console.error);
-  }, []);
+    if (!rawPosts.length) return;
+    const sorted = rawPosts
+      .filter((p) => !p.isStub)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    setAllPosts(sorted);
+  }, [rawPosts]);
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {

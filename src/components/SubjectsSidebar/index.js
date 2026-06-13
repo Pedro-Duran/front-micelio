@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { parsePage, authFetch } from "../../utils/api";
+import { authFetch } from "../../utils/api";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { usePosts } from "../../context/PostsContext";
 import { useTranslation } from "react-i18next";
 
 const MIN_WIDTH = 140;
@@ -9,8 +10,8 @@ const MAX_WIDTH = 400;
 const DEFAULT_WIDTH = 200;
 
 function SubjectsSidebar() {
-  const [subjects, setSubjects] = useState([]);
-  const [pinnedSubjects, setPinnedSubjects] = useState([]); // ordered array of names
+  const { posts } = usePosts();
+  const [pinnedSubjects, setPinnedSubjects] = useState([]);
   const [hoveredSubject, setHoveredSubject] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,23 +29,16 @@ function SubjectsSidebar() {
   const pathMatch = location.pathname.match(/^\/subject\/(.+)$/);
   const activeSubject = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
 
-  // Load subjects
-  useEffect(() => {
-    fetch("/api/posts/verPosts")
-      .then((r) => (r.ok ? r.json() : []))
-      .catch(() => [])
-      .then((raw) => parsePage(raw).content)
-      .then((data) => {
-        const counts = {};
-        data.forEach((post) => {
-          const subjs = Array.isArray(post.subjects) && post.subjects.length > 0
-            ? post.subjects
-            : post.subject ? [post.subject] : [t("sidebar.noCategory")];
-          subjs.forEach((s) => { counts[s] = (counts[s] || 0) + 1; });
-        });
-        setSubjects(Object.entries(counts).map(([name, count]) => ({ name, count })));
-      });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const subjects = useMemo(() => {
+    const counts = {};
+    posts.forEach((post) => {
+      const subjs = Array.isArray(post.subjects) && post.subjects.length > 0
+        ? post.subjects
+        : post.subject ? [post.subject] : [t("sidebar.noCategory")];
+      subjs.forEach((s) => { counts[s] = (counts[s] || 0) + 1; });
+    });
+    return Object.entries(counts).map(([name, count]) => ({ name, count }));
+  }, [posts, t]);
 
   // Load pinned subjects
   useEffect(() => {

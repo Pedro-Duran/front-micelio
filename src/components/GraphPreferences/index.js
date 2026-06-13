@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { ForceGraph2D } from "react-force-graph";
 import { useNavigate } from "react-router-dom";
 import Cabecalho from "../Cabecalho";
-import { parsePage, authFetch } from "../../utils/api";
+import { authFetch } from "../../utils/api";
+import { usePosts } from "../../context/PostsContext";
 import { GRAPH_PRESETS, PRESET_KEY } from "../../utils/graphPresets";
 
 function applyPreset(fgRef, preset) {
@@ -155,6 +156,7 @@ function PreviewCard({ preset, nodes, links, selected, onSelect }) {
 
 function GraphPreferences() {
   const navigate = useNavigate();
+  const { posts: allPostsData } = usePosts();
   const [subjects, setSubjects] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [nodes, setNodes] = useState([]);
@@ -189,45 +191,34 @@ function GraphPreferences() {
   }, []);
 
   useEffect(() => {
-    if (!selectedSubject) return;
-    fetch("/api/posts/verPosts")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((raw) => parsePage(raw).content)
-      .then((data) => {
-        const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
-          ? p.subjects : (p.subject ? [p.subject] : []);
+    if (!selectedSubject || !allPostsData.length) return;
 
-        const writtenTitles = new Set(
-          data.filter((p) => !p.isStub).map((p) => p.title?.toLowerCase().trim()).filter(Boolean)
-        );
-        const deduped = data.filter(
-          (p) => !p.isStub || !writtenTitles.has(p.title?.toLowerCase().trim())
-        );
+    const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
+      ? p.subjects : (p.subject ? [p.subject] : []);
 
-        const subjectNodes = deduped
-          .filter((p) => getSubjs(p).includes(selectedSubject))
-          .map((p) => ({
-            id: p.id,
-            title: p.title || "Sem título",
-            isStub: p.isStub || false,
-          }));
+    // allPostsData from context are already deduped
+    const subjectNodes = allPostsData
+      .filter((p) => getSubjs(p).includes(selectedSubject))
+      .map((p) => ({
+        id: p.id,
+        title: p.title || "Sem título",
+        isStub: p.isStub || false,
+      }));
 
-        const nodeIds = new Set(subjectNodes.map((n) => n.id));
-        const subjectLinks = [];
-        deduped.forEach((p) => {
-          if (!nodeIds.has(p.id)) return;
-          if (Array.isArray(p.links)) {
-            p.links.forEach((linkedId) => {
-              if (nodeIds.has(linkedId)) subjectLinks.push({ source: p.id, target: linkedId });
-            });
-          }
+    const nodeIds = new Set(subjectNodes.map((n) => n.id));
+    const subjectLinks = [];
+    allPostsData.forEach((p) => {
+      if (!nodeIds.has(p.id)) return;
+      if (Array.isArray(p.links)) {
+        p.links.forEach((linkedId) => {
+          if (nodeIds.has(linkedId)) subjectLinks.push({ source: p.id, target: linkedId });
         });
+      }
+    });
 
-        setNodes(subjectNodes);
-        setLinks(subjectLinks);
-      })
-      .catch(() => {});
-  }, [selectedSubject]);
+    setNodes(subjectNodes);
+    setLinks(subjectLinks);
+  }, [selectedSubject, allPostsData]);
 
   const handleSave = async () => {
     if (!selectedPreset || saving) return;

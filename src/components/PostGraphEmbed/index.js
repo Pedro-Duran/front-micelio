@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { ForceGraph2D } from "react-force-graph";
-import { parsePage } from "../../utils/api";
 import { getSavedPreset } from "../../utils/graphPresets";
+import { usePosts } from "../../context/PostsContext";
 
 const AUTHOR_PALETTE = ["#4fc3f7", "#81c784", "#ffb74d", "#f06292", "#ba68c8", "#4db6ac", "#fff176", "#ff8a65"];
 
@@ -10,46 +10,30 @@ function PostGraphEmbed() {
   const { id } = useParams();
   const postId = parseInt(id);
 
-  const [allNodes, setAllNodes] = useState([]);
-  const [allLinks, setAllLinks] = useState([]);
-  const [ready, setReady] = useState(false);
+  const { posts: rawPosts, loading } = usePosts();
 
-  useEffect(() => {
-    fetch("/api/posts/verPosts")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((raw) => parsePage(raw).content)
-      .then((data) => {
-        const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
-          ? p.subjects : (p.subject ? [p.subject] : []);
+  const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
+    ? p.subjects : (p.subject ? [p.subject] : []);
 
-        const writtenTitles = new Set(
-          data.filter((p) => !p.isStub).map((p) => p.title?.toLowerCase().trim()).filter(Boolean)
-        );
-        const deduped = data.filter(
-          (p) => !p.isStub || !writtenTitles.has(p.title?.toLowerCase().trim())
-        );
+  const allNodes = useMemo(() => rawPosts.map((p) => ({
+    id: p.id,
+    title: p.title || "Sem título",
+    authorUsername: p.authorUsername || p.author?.username || null,
+    subject: getSubjs(p)[0] || "Sem categoria",
+    isStub: p.isStub || false,
+  })), [rawPosts]); // eslint-disable-line react-hooks/exhaustive-deps
 
-        const nodes = deduped.map((p) => ({
-          id: p.id,
-          title: p.title || "Sem título",
-          authorUsername: p.authorUsername || p.author?.username || null,
-          subject: getSubjs(p)[0] || "Sem categoria",
-          isStub: p.isStub || false,
-        }));
+  const allLinks = useMemo(() => {
+    const links = [];
+    rawPosts.forEach((p) => {
+      if (Array.isArray(p.links)) {
+        p.links.forEach((linkedId) => links.push({ source: p.id, target: linkedId }));
+      }
+    });
+    return links;
+  }, [rawPosts]);
 
-        const links = [];
-        deduped.forEach((p) => {
-          if (Array.isArray(p.links)) {
-            p.links.forEach((linkedId) => links.push({ source: p.id, target: linkedId }));
-          }
-        });
-
-        setAllNodes(nodes);
-        setAllLinks(links);
-        setReady(true);
-      })
-      .catch(() => setReady(true));
-  }, []);
+  const ready = !loading;
 
   const localGraphData = useMemo(() => {
     if (!ready) return { nodes: [], links: [] };

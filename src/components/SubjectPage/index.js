@@ -3,7 +3,8 @@ import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { ForceGraph2D } from "react-force-graph";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
-import { authFetch, parsePage } from "../../utils/api";
+import { authFetch } from "../../utils/api";
+import { usePosts } from "../../context/PostsContext";
 import { useAuth } from "../../context/AuthContext";
 import { useTranslation } from "react-i18next";
 import { getSavedPreset } from "../../utils/graphPresets";
@@ -57,6 +58,7 @@ function SubjectPage() {
   const fromPost = location.state?.fromPost ?? null;
   const { t } = useTranslation();
   const { isLoggedIn } = useAuth();
+  const { posts: allPostsData } = usePosts();
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -99,56 +101,50 @@ function SubjectPage() {
   };
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/posts/verPosts").then((r) => r.json()).then((d) => parsePage(d).content),
-      authFetch("/api/events/summary").then((r) => r.ok ? r.json() : []).catch(() => []),
-    ]).then(([postsData, summaryData]) => {
-      const vcMap = {};
-      summaryData.forEach((s) => { vcMap[s.postId] = s.viewCount || 0; });
+    if (!allPostsData.length) return;
 
-      const getSubjs = (p) =>
-        Array.isArray(p.subjects) && p.subjects.length > 0
-          ? p.subjects
-          : p.subject ? [p.subject] : [t("sidebar.noCategory")];
+    authFetch("/api/events/summary").then((r) => r.ok ? r.json() : []).catch(() => [])
+      .then((summaryData) => {
+        const vcMap = {};
+        summaryData.forEach((s) => { vcMap[s.postId] = s.viewCount || 0; });
 
-      const writtenTitles = new Set(
-        postsData.filter((p) => !p.isStub).map((p) => p.title?.toLowerCase().trim()).filter(Boolean)
-      );
-      const dedupedPosts = postsData.filter(
-        (p) => !p.isStub || !writtenTitles.has(p.title?.toLowerCase().trim())
-      );
+        const getSubjs = (p) =>
+          Array.isArray(p.subjects) && p.subjects.length > 0
+            ? p.subjects
+            : p.subject ? [p.subject] : [t("sidebar.noCategory")];
 
-      const subjectNodes = dedupedPosts
-        .filter((p) => getSubjs(p).includes(subject))
-        .map((p) => ({
-          id: p.id,
-          title: p.title || t("sidebar.noCategory"),
-          content: p.content || "",
-          isStub: p.isStub || false,
-          viewCount: vcMap[p.id] || 0,
-        }));
+        // allPostsData from context are already deduped
+        const subjectNodes = allPostsData
+          .filter((p) => getSubjs(p).includes(subject))
+          .map((p) => ({
+            id: p.id,
+            title: p.title || t("sidebar.noCategory"),
+            content: p.content || "",
+            isStub: p.isStub || false,
+            viewCount: vcMap[p.id] || 0,
+          }));
 
-      const subjectIds = new Set(subjectNodes.map((n) => n.id));
-      const subjectLinks = [];
-      dedupedPosts.forEach((p) => {
-        if (Array.isArray(p.links)) {
-          p.links.forEach((linkedId) => {
-            if (subjectIds.has(p.id) && subjectIds.has(linkedId)) {
-              subjectLinks.push({ source: p.id, target: linkedId });
-            }
-          });
-        }
-      });
+        const subjectIds = new Set(subjectNodes.map((n) => n.id));
+        const subjectLinks = [];
+        allPostsData.forEach((p) => {
+          if (Array.isArray(p.links)) {
+            p.links.forEach((linkedId) => {
+              if (subjectIds.has(p.id) && subjectIds.has(linkedId)) {
+                subjectLinks.push({ source: p.id, target: linkedId });
+              }
+            });
+          }
+        });
 
-      const best = [...subjectNodes]
-        .filter((n) => !n.isStub)
-        .sort((a, b) => b.viewCount - a.viewCount)[0] || null;
+        const best = [...subjectNodes]
+          .filter((n) => !n.isStub)
+          .sort((a, b) => b.viewCount - a.viewCount)[0] || null;
 
-      setNodes(subjectNodes);
-      setLinks(subjectLinks);
-      setTopPost(best);
-    }).catch((err) => console.error(err));
-  }, [subject]); // eslint-disable-line react-hooks/exhaustive-deps
+        setNodes(subjectNodes);
+        setLinks(subjectLinks);
+        setTopPost(best);
+      }).catch((err) => console.error(err));
+  }, [subject, allPostsData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!containerRef.current) return;

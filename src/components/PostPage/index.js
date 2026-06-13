@@ -8,7 +8,8 @@ import MDEditor, { commands } from "@uiw/react-md-editor";
 import Cabecalho from "../Cabecalho";
 import SubjectsSidebar from "../SubjectsSidebar";
 import { registerEvent } from "../../utils/analytics";
-import { authFetch, authFetchMultipart, parsePage } from "../../utils/api";
+import { authFetch, authFetchMultipart } from "../../utils/api";
+import { usePosts } from "../../context/PostsContext";
 import { useAuth } from "../../context/AuthContext";
 import { getSavedPreset } from "../../utils/graphPresets";
 import Comments from "../Comments";
@@ -29,6 +30,7 @@ function PostPage() {
 
   const fromPost = location.state?.fromPost ?? null;
   const graphPhysics = getSavedPreset();
+  const { posts: rawPosts, refresh: refreshPosts } = usePosts();
 
   const [allNodes, setAllNodes] = useState([]);
   const [allLinks, setAllLinks] = useState([]);
@@ -151,66 +153,51 @@ function PostPage() {
   }, [postId]);
 
   useEffect(() => {
-    fetch("/api/posts/verPosts")
-      .then((res) => {
-        if (!res.ok) throw new Error("Erro na requisição");
-        return res.json();
-      })
-      .then((raw) => parsePage(raw).content)
-      .then((data) => {
-        const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
-          ? p.subjects : (p.subject ? [p.subject] : []);
+    if (!rawPosts.length) return;
 
-        const writtenTitles = new Set(
-          data.filter((p) => !p.isStub).map((p) => p.title?.toLowerCase().trim()).filter(Boolean)
-        );
-        const dedupedData = data.filter(
-          (p) => !p.isStub || !writtenTitles.has(p.title?.toLowerCase().trim())
-        );
+    const getSubjs = (p) => Array.isArray(p.subjects) && p.subjects.length > 0
+      ? p.subjects : (p.subject ? [p.subject] : []);
 
-        const nodes = dedupedData.map((p) => ({
-          id: p.id,
-          title: p.title || "Sem título",
-          content: p.content || "",
-          author: p.authorUsername || p.author?.username || "Desconhecido",
-          authorUsername: p.authorUsername || p.author?.username || null,
-          subjects: getSubjs(p),
-          subject: getSubjs(p)[0] || "Sem categoria",
-          isStub: p.isStub || false,
-          subscribedByMe: p.subscribedByMe || false,
-          createdAt: p.createdAt || null,
-          coverImageUrl: p.coverImageUrl || null,
-          avatarUrl: p.authorAvatarUrl || p.author?.avatarUrl || null,
-        }));
+    // rawPosts from context are already deduped
+    const nodes = rawPosts.map((p) => ({
+      id: p.id,
+      title: p.title || "Sem título",
+      content: p.content || "",
+      author: p.authorUsername || p.author?.username || "Desconhecido",
+      authorUsername: p.authorUsername || p.author?.username || null,
+      subjects: getSubjs(p),
+      subject: getSubjs(p)[0] || "Sem categoria",
+      isStub: p.isStub || false,
+      subscribedByMe: p.subscribedByMe || false,
+      createdAt: p.createdAt || null,
+      coverImageUrl: p.coverImageUrl || null,
+      avatarUrl: p.authorAvatarUrl || p.author?.avatarUrl || null,
+    }));
 
-        const links = [];
-        dedupedData.forEach((p) => {
-          if (Array.isArray(p.links)) {
-            p.links.forEach((linkedId) => {
-              links.push({ source: p.id, target: linkedId });
-            });
-          }
-        });
+    const links = [];
+    rawPosts.forEach((p) => {
+      if (Array.isArray(p.links)) {
+        p.links.forEach((linkedId) => { links.push({ source: p.id, target: linkedId }); });
+      }
+    });
 
-        setAllNodes(nodes);
-        setAllLinks(links);
+    setAllNodes(nodes);
+    setAllLinks(links);
 
-        const current = nodes.find((n) => n.id === postId);
-        if (current) {
-          setPost(current);
-          setEditedTitle(current.title);
-          setEditedContent(current.content);
-          setEditedSubjects(current.subjects?.length > 0 ? current.subjects : (current.subject ? [current.subject] : []));
-        }
-        const rawPost = dedupedData.find((p) => p.id === postId);
-        if (rawPost) {
-          setLikeCount(rawPost.likeCount || 0);
-          setLikedByMe(rawPost.likedByMe || false);
-          setSubscriberCount(rawPost.subscriberCount ?? 0);
-        }
-      })
-      .catch((err) => console.error(err));
-  }, [postId]);
+    const current = nodes.find((n) => n.id === postId);
+    if (current) {
+      setPost(current);
+      setEditedTitle(current.title);
+      setEditedContent(current.content);
+      setEditedSubjects(current.subjects?.length > 0 ? current.subjects : (current.subject ? [current.subject] : []));
+    }
+    const rawPost = rawPosts.find((p) => p.id === postId);
+    if (rawPost) {
+      setLikeCount(rawPost.likeCount || 0);
+      setLikedByMe(rawPost.likedByMe || false);
+      setSubscriberCount(rawPost.subscriberCount ?? 0);
+    }
+  }, [rawPosts, postId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const backlinks = useMemo(() => {
     return allLinks
@@ -442,6 +429,7 @@ function PostPage() {
       setEditedTitle(updated.title);
       setEditedContent(updated.content);
       setEditMode(false);
+      refreshPosts();
     } catch (error) {
       console.error("Erro ao salvar:", error);
       alert(t("postPage.savePostError"));
@@ -505,6 +493,7 @@ function PostPage() {
     try {
       const response = await authFetch(`/api/posts/deletePost?id=${postId}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Falha ao deletar");
+      refreshPosts();
       navigate("/");
     } catch (error) {
       console.error("Erro ao deletar:", error);
