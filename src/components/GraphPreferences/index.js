@@ -286,7 +286,7 @@ function GraphPreferences() {
           </div>
 
           {/* Preset cards */}
-          <div style={{ display: "flex", flexWrap: "nowrap", gap: "16px", marginBottom: "32px", overflowX: "auto", paddingBottom: "8px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", marginBottom: "32px" }}>
             {GRAPH_PRESETS.map((preset) => (
               <PreviewCard
                 key={preset.nome}
