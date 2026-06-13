@@ -750,55 +750,10 @@ function PostPage() {
                 onChange={handleCoverUpload}
               />
 
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <h1 style={{ fontSize: "28px", marginBottom: "8px", marginTop: 0 }}>{editedTitle}</h1>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                  <ShareButton postId={postId} username={currentUsername} />
-                  <button
-                    onClick={() => commentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                    style={{ background: "none", border: "1px solid #333", borderRadius: "4px", color: "#666", cursor: "pointer", fontSize: "11px", padding: "3px 9px", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.borderColor = "#555"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }}
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                    </svg>
-                    {commentCount > 0 ? `${commentCount} comentário${commentCount !== 1 ? "s" : ""}` : "Comentários"}
-                  </button>
-                  {isLoggedIn && !post.isStub && (
-                    <button
-                      onClick={() => navigate("/novoPost", { state: { refTitle: post.title, refPostId: postId } })}
-                      style={{ background: "none", border: "1px solid #333", borderRadius: "4px", color: "#666", cursor: "pointer", fontSize: "11px", padding: "3px 8px", whiteSpace: "nowrap" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; e.currentTarget.style.borderColor = "#4fc3f7"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }}
-                    >
-                      {t("postPage.refPost")}
-                    </button>
-                  )}
-                  {isLoggedIn && post.author === currentUsername && (
-                    <>
-                      <button
-                        onClick={() => setEditMode(true)}
-                        style={{ background: "none", border: "1px solid #333", borderRadius: "4px", color: "#666", cursor: "pointer", fontSize: "11px", padding: "3px 9px", whiteSpace: "nowrap" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.borderColor = "#555"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }}
-                      >
-                        Editar post
-                      </button>
-                      <button
-                        onClick={handleDelete}
-                        style={{ background: "none", border: "1px solid #333", borderRadius: "4px", color: "#666", cursor: "pointer", fontSize: "11px", padding: "3px 9px", whiteSpace: "nowrap" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = "#f44336"; e.currentTarget.style.borderColor = "#f44336"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }}
-                      >
-                        Excluir post
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "28px" }}>
-                {/* Avatar + author info */}
+              <h1 style={{ fontSize: "28px", marginBottom: "16px", marginTop: 0 }}>{editedTitle}</h1>
+
+              <div style={{ display: "flex", alignItems: "flex-start", marginBottom: "28px" }}>
+                {/* Avatar + author info + action buttons */}
                 <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
                   <div
                     onClick={() => navigate(`/user/${post.author}`)}
@@ -806,7 +761,7 @@ function PostPage() {
                   >
                     <Avatar avatarUrl={post.avatarUrl} username={post.author} size={38} />
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                     <span
                       onClick={() => navigate(`/user/${post.author}`)}
                       style={{ color: "#ccc", fontSize: "14px", fontWeight: "500", cursor: "pointer", lineHeight: 1.2 }}
@@ -815,46 +770,92 @@ function PostPage() {
                     >
                       {post.author}
                     </span>
-                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" }}>
                       {(post.subjects?.length > 0 ? post.subjects : [post.subject]).filter(Boolean).map((s) => (
                         <span
                           key={s}
                           onClick={() => navigate(`/subject/${encodeURIComponent(s)}`, { state: { fromPost: { id: postId, title: post.title } } })}
-                          style={{ color: "#666", fontSize: "12px", borderBottom: "1px solid #333", cursor: "pointer" }}
-                          onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; e.currentTarget.style.borderBottomColor = "#4fc3f7"; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderBottomColor = "#333"; }}
+                          style={{ color: "#555", fontSize: "12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; }}
                         >
-                          {s}
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
+                          ir para {s}
                         </span>
                       ))}
                     </div>
+
+                    {/* Action buttons */}
+                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", marginTop: "2px" }}>
+                      <ShareButton postId={postId} username={currentUsername} />
+                      <button
+                        onClick={() => commentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                        style={{ background: "none", border: "1px solid #333", borderRadius: "4px", color: "#666", cursor: "pointer", fontSize: "11px", padding: "3px 9px", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.borderColor = "#555"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                        {commentCount > 0 ? `${commentCount} comentário${commentCount !== 1 ? "s" : ""}` : "Comentários"}
+                      </button>
+                      {isLoggedIn && !post.isStub && (
+                        <button
+                          onClick={() => navigate("/novoPost", { state: { refTitle: post.title, refPostId: postId } })}
+                          style={{ background: "none", border: "1px solid #333", borderRadius: "4px", color: "#666", cursor: "pointer", fontSize: "11px", padding: "3px 8px", whiteSpace: "nowrap" }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; e.currentTarget.style.borderColor = "#4fc3f7"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }}
+                        >
+                          {t("postPage.refPost")}
+                        </button>
+                      )}
+                      {isLoggedIn && post.author === currentUsername && (
+                        <>
+                          <button
+                            onClick={() => setEditMode(true)}
+                            style={{ background: "none", border: "1px solid #333", borderRadius: "4px", color: "#666", cursor: "pointer", fontSize: "11px", padding: "3px 9px", whiteSpace: "nowrap" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.borderColor = "#555"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }}
+                          >
+                            Editar post
+                          </button>
+                          <button
+                            onClick={handleDelete}
+                            style={{ background: "none", border: "1px solid #333", borderRadius: "4px", color: "#666", cursor: "pointer", fontSize: "11px", padding: "3px 9px", whiteSpace: "nowrap" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = "#f44336"; e.currentTarget.style.borderColor = "#f44336"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = "#666"; e.currentTarget.style.borderColor = "#333"; }}
+                          >
+                            Excluir post
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={handleLike}
+                        title={isLoggedIn ? (likedByMe ? t("postPage.unlike") : t("postPage.like")) : t("postPage.loginToLike")}
+                        style={{
+                          background: "none",
+                          border: `1px solid ${likedByMe ? "#c2185b" : "#333"}`,
+                          borderRadius: "20px",
+                          color: likedByMe ? "#f06292" : "#555",
+                          cursor: isLoggedIn ? "pointer" : "default",
+                          fontSize: "11px",
+                          padding: "3px 10px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          transition: "color 0.15s, border-color 0.15s",
+                        }}
+                        onMouseEnter={(e) => { if (isLoggedIn && !likedByMe) { e.currentTarget.style.color = "#f06292"; e.currentTarget.style.borderColor = "#c2185b"; } }}
+                        onMouseLeave={(e) => { if (!likedByMe) { e.currentTarget.style.color = "#555"; e.currentTarget.style.borderColor = "#333"; } }}
+                      >
+                        <span>{likedByMe ? "♥" : "♡"}</span>
+                        {likeCount > 0 && <span>{likeCount}</span>}
+                      </button>
+                    </div>
                   </div>
                 </div>
-
-                {/* Like button */}
-                <button
-                  onClick={handleLike}
-                  title={isLoggedIn ? (likedByMe ? t("postPage.unlike") : t("postPage.like")) : t("postPage.loginToLike")}
-                  style={{
-                    background: "none",
-                    border: `1px solid ${likedByMe ? "#c2185b" : "#333"}`,
-                    borderRadius: "20px",
-                    color: likedByMe ? "#f06292" : "#555",
-                    cursor: isLoggedIn ? "pointer" : "default",
-                    fontSize: "13px",
-                    padding: "4px 14px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    transition: "color 0.15s, border-color 0.15s",
-                    flexShrink: 0,
-                  }}
-                  onMouseEnter={(e) => { if (isLoggedIn && !likedByMe) { e.currentTarget.style.color = "#f06292"; e.currentTarget.style.borderColor = "#c2185b"; } }}
-                  onMouseLeave={(e) => { if (!likedByMe) { e.currentTarget.style.color = "#555"; e.currentTarget.style.borderColor = "#333"; } }}
-                >
-                  <span style={{ fontSize: "15px" }}>{likedByMe ? "♥" : "♡"}</span>
-                  {likeCount > 0 && <span>{likeCount}</span>}
-                </button>
               </div>
               {post.isStub && post.author === currentUsername && subscriberCount !== null && subscriberCount > 0 && (
                 <button
