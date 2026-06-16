@@ -18,6 +18,8 @@ import SearchPage from "./components/SearchPage";
 import MarkdownTutorial from "./components/MarkdownTutorial";
 import PostGraphEmbed from "./components/PostGraphEmbed";
 import GraphPreferences from "./components/GraphPreferences";
+import MobileBlock from "./components/MobileBlock";
+import { isMobileDevice } from "./utils/isMobile";
 
 function ProtectedRoute({ children }) {
   const { isLoggedIn } = useAuth();
@@ -25,6 +27,8 @@ function ProtectedRoute({ children }) {
 }
 
 function MainRouter() {
+  if (isMobileDevice()) return <MobileBlock />;
+
   return (
     <AuthProvider>
       <PostsProvider>
