@@ -14,7 +14,7 @@ function MobileBlock() {
       }}
     >
       <p style={{ color: "#888", fontSize: "16px", lineHeight: "1.6", maxWidth: "320px", margin: 0 }}>
-        A experiência desse blog foi projetada para computadores, acesse o puredo no PC para interagir com a organização das bagunças mentais.
+        A experiência desse blog foi projetada para computadores, acesse o puredo no PC para interagir com bagunças mentais organizadas.
       </p>
     </div>
   );
