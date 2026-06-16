@@ -47,7 +47,7 @@ function LoginModal({ onClose, onSuccess }) {
       if (res.status === 401) { setError(t("comments.wrongCredentials")); return; }
       if (!res.ok) throw new Error();
       const data = await res.json();
-      login(data.token, data.username);
+      login(data.accessToken, data.refreshToken, data.username);
       onSuccess();
     } catch {
       setError(t("comments.serverError"));

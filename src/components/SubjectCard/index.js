@@ -331,7 +331,12 @@ function SubjectCard({ subject, nodes, links, onNodeClick, overlay = false, isOw
                 <p style={{ color: "#4fc3f7", fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.12em", margin: "0 0 4px" }}>
                   {t("subjectCard.inThisTopic")}
                 </p>
-                <h4 style={{ color: "#e8e8e8", fontSize: "13px", margin: "0 0 5px", fontWeight: "bold", lineHeight: "1.3" }}>
+                <h4
+                  onClick={(e) => { e.stopPropagation(); handleNodeClick(topPost); }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "#e8e8e8"; }}
+                  style={{ color: "#e8e8e8", fontSize: "13px", margin: "0 0 5px", fontWeight: "bold", lineHeight: "1.3", cursor: "pointer" }}
+                >
                   {topPost.title}
                 </h4>
                 {previewText && (

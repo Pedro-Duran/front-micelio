@@ -58,7 +58,7 @@ function Login() {
       if (!res.ok) throw new Error();
 
       const data = await res.json();
-      login(data.token, data.username);
+      login(data.accessToken, data.refreshToken, data.username);
       navigate("/");
     } catch {
       setError(t("auth.serverError"));

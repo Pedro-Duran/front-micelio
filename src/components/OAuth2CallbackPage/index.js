@@ -19,13 +19,14 @@ function OAuth2CallbackPage() {
 
   useEffect(() => {
     const token = searchParams.get("token");
+    const refreshToken = searchParams.get("refreshToken");
     if (!token) { navigate("/login"); return; }
 
     const payload = parseJwt(token);
     const username = payload?.sub;
 
     if (username) {
-      login(token, username);
+      login(token, refreshToken, username);
       navigate("/");
     } else {
       navigate("/login");

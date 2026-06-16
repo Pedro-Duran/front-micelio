@@ -33,8 +33,9 @@ function ResetPasswordPage() {
 
       let data = null;
       try { data = await res.json(); } catch {}
-      if (data?.token && data?.username) {
-        login(data.token, data.username);
+      const accessToken = data?.accessToken || data?.token;
+      if (accessToken && data?.username) {
+        login(accessToken, data?.refreshToken, data.username);
         navigate("/");
       } else {
         setDone(true);
