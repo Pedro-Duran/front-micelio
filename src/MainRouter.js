@@ -20,6 +20,7 @@ import PostGraphEmbed from "./components/PostGraphEmbed";
 import GraphPreferences from "./components/GraphPreferences";
 import MobileBlock from "./components/MobileBlock";
 import { isMobileDevice } from "./utils/isMobile";
+import { NotificationsProvider } from "./context/NotificationsContext";
 
 function ProtectedRoute({ children }) {
   const { isLoggedIn } = useAuth();
@@ -32,6 +33,7 @@ function MainRouter() {
   return (
     <AuthProvider>
       <PostsProvider>
+      <NotificationsProvider>
       <Router>
         <Routes>
           <Route path="/" element={<App />} />
@@ -52,6 +54,7 @@ function MainRouter() {
           <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
         </Routes>
       </Router>
+      </NotificationsProvider>
       </PostsProvider>
     </AuthProvider>
   );
