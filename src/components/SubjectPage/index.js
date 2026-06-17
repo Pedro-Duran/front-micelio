@@ -325,9 +325,37 @@ function SubjectPage() {
                 )}
               </div>
             )}
-            <p style={{ color: "#555", fontSize: "13px", margin: "4px 0 0" }}>
-              {t("subjectPage.post", { count: nodes.length })}
-            </p>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "4px" }}>
+              <p style={{ color: "#555", fontSize: "13px", margin: 0 }}>
+                {t("subjectPage.post", { count: nodes.length })}
+              </p>
+              {isLoggedIn && (
+                <button
+                  onClick={() => navigate("/novoPost", { state: { preselectedSubject: subject } })}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    background: "none",
+                    border: "1px solid #2a2a2a",
+                    borderRadius: "6px",
+                    color: "#555",
+                    fontSize: "12px",
+                    padding: "5px 12px",
+                    cursor: "pointer",
+                    transition: "color 0.15s, border-color 0.15s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#4fc3f7"; e.currentTarget.style.borderColor = "#4fc3f7"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; e.currentTarget.style.borderColor = "#2a2a2a"; }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  Criar post nesse subject
+                </button>
+              )}
+            </div>
           </div>
 
           <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>

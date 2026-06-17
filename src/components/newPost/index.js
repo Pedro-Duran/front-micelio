@@ -25,10 +25,11 @@ function NovoPost() {
   const { t } = useTranslation();
 
   const refTitle = location.state?.refTitle || null;
+  const preselectedSubject = location.state?.preselectedSubject || null;
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState(() => refTitle ? makeRefTemplate(refTitle) : "");
-  const [selectedSubjects, setSelectedSubjects] = useState([]);
+  const [selectedSubjects, setSelectedSubjects] = useState(() => preselectedSubject ? [preselectedSubject] : []);
   const [allSubjects, setAllSubjects] = useState([]);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [newSubjectInput, setNewSubjectInput] = useState("");
